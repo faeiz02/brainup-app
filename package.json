@@ -4,6 +4,9 @@
   "description": "Site de réservation Brain Up avec panneau d'administration et base de données SQLite.",
   "main": "server.js",
   "type": "commonjs",
+  "engines": {
+    "node": "20.19.0"
+  },
   "scripts": {
     "start": "node server.js",
     "seed": "node database/seed.js"
