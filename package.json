@@ -1,0 +1,20 @@
+{
+  "name": "brainup-site",
+  "version": "1.0.0",
+  "description": "Site de réservation Brain Up avec panneau d'administration et base de données SQLite.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node database/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0"
+  }
+}

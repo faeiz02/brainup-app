@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<title>Brain Up — Administration</title>
+<style>
+  :root{
+    --blue:#2196f3; --blue-dark:#0d5fb0; --blue-light:#e8f3fd;
+    --orange:#f7941e; --orange-dark:#e07d05;
+    --bg:#f4f7fa; --card:#ffffff; --text:#1a2230; --muted:#5c6b7a; --border:#e2ecf1;
+    --danger:#e0453a; --success:#2fa84f;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  a{ color:var(--blue-dark); }
+  button{ font-family:inherit; }
+
+  /* ---- login ---- */
+  .login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .login-card{ background:#fff; border-radius:16px; box-shadow:0 10px 40px rgba(20,60,90,.12); padding:40px 34px; width:100%; max-width:380px; text-align:center; }
+  .login-card img{ height:70px; margin-bottom:10px; }
+  .login-card h1{ font-size:20px; margin:0 0 24px; color:var(--blue-dark); }
+  .login-card input{ width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:8px; font-size:15px; margin-bottom:14px; }
+  .login-card button{ width:100%; padding:13px; border:none; border-radius:8px; background:var(--blue-dark); color:#fff; font-weight:700; font-size:15px; cursor:pointer; }
+  .login-card button:hover{ filter:brightness(1.08); }
+  .login-error{ background:#fdecea; color:#8a2c22; padding:10px 12px; border-radius:8px; font-size:13.5px; margin-bottom:14px; text-align:left; }
+  .login-hint{ margin-top:18px; font-size:12.5px; color:var(--muted); }
+
+  /* ---- shell ---- */
+  .shell{ display:flex; min-height:100vh; }
+  .sidebar{ width:230px; background:#0f2540; color:#fff; flex-shrink:0; display:flex; flex-direction:column; }
+  .sidebar .brand{ display:flex; align-items:center; gap:10px; padding:20px 18px; border-bottom:1px solid rgba(255,255,255,.1); }
+  .sidebar .brand img{ height:34px; }
+  .sidebar .brand span{ font-weight:800; font-size:16px; }
+  .nav{ flex:1; padding:14px 10px; display:flex; flex-direction:column; gap:2px; }
+  .nav button{ display:flex; align-items:center; gap:10px; text-align:left; background:none; border:none; color:#c7d3e0; padding:11px 12px; border-radius:8px; cursor:pointer; font-size:14.5px; }
+  .nav button:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .nav button.active{ background:var(--blue); color:#fff; }
+  .sidebar-footer{ padding:14px; border-top:1px solid rgba(255,255,255,.1); font-size:13px; color:#9fb2c7; }
+  .sidebar-footer button{ background:none; border:none; color:#ff8f80; cursor:pointer; font-size:13px; padding:0; margin-top:6px; }
+
+  .content{ flex:1; padding:28px 32px; max-width:1200px; }
+  .page-title{ font-size:24px; font-weight:800; margin:0 0 4px; }
+  .page-sub{ color:var(--muted); font-size:14.5px; margin:0 0 24px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px; }
+  .stat-card{ background:#fff; border:1px solid var(--border); border-radius:12px; padding:18px; }
+  .stat-card .num{ font-size:28px; font-weight:800; color:var(--blue-dark); }
+  .stat-card .lbl{ color:var(--muted); font-size:13px; margin-top:2px; }
+
+  .card{ background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .card h3{ margin:0 0 14px; font-size:16px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th{ text-align:left; padding:10px 12px; color:var(--muted); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid var(--border); }
+  td{ padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .table-wrap{ overflow-x:auto; }
+
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+  .toolbar input, .toolbar select{ padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; }
+  .spacer{ flex:1; }
+
+  .btn{ border:none; border-radius:8px; padding:9px 16px; font-weight:700; font-size:13.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .btn-primary{ background:var(--blue-dark); color:#fff; }
+  .btn-orange{ background:var(--orange); color:#fff; }
+  .btn-outline{ background:#fff; border:1px solid var(--border); color:var(--text); }
+  .btn-danger{ background:#fff; border:1px solid #f3c9c5; color:var(--danger); }
+  .btn-sm{ padding:6px 10px; font-size:12.5px; }
+  .btn:hover{ filter:brightness(1.06); }
+
+  .badge{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; }
+  .badge-confirmed{ background:#e3f6e8; color:var(--success); }
+  .badge-cancelled{ background:#fdecea; color:var(--danger); }
+  .badge-attended{ background:#e8f3fd; color:var(--blue-dark); }
+  .badge-absent{ background:#fdf1de; color:#8a5a00; }
+  .badge-active{ background:#e3f6e8; color:var(--success); }
+  .badge-inactive{ background:#f1f1f1; color:#888; }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(10,20,35,.45); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal{ background:#fff; border-radius:14px; padding:26px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+  .modal h3{ margin:0 0 18px; font-size:18px; }
+  .form-field{ margin-bottom:14px; }
+  .form-field label{ display:block; font-size:13.5px; font-weight:600; margin-bottom:5px; }
+  .form-field input, .form-field select, .form-field textarea{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; }
+  .form-field textarea{ min-height:80px; resize:vertical; }
+  .form-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .checkbox-row input{ width:auto; }
+
+  .empty{ text-align:center; color:var(--muted); padding:40px 20px; font-size:14px; }
+  .toast{ position:fixed; bottom:20px; right:20px; background:#0f2540; color:#fff; padding:12px 18px; border-radius:10px; font-size:14px; z-index:100; box-shadow:0 6px 20px rgba(0,0,0,.2); }
+  .icon-row{ display:flex; align-items:center; gap:6px; }
+  .mobile-toggle{ display:none; }
+  @media (max-width:880px){
+    .shell{ flex-direction:column; }
+    .sidebar{ width:100%; flex-direction:row; align-items:center; overflow-x:auto; }
+    .nav{ flex-direction:row; padding:8px; }
+    .sidebar-footer{ display:none; }
+    .content{ padding:18px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const API = '/api/admin';
+let currentUser = null;
+let activePage = 'dashboard';
+let toastTimer = null;
+
+const ICONS = {
+  dashboard:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>`,
+  cities:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  modules:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`,
+  slots:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+  bookings:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  announcements:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 11 18-5v12L3 14v-3Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>`,
+  rules:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>`,
+  settings:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>`,
+};
+
+async function api(path, opts={}){
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if(res.status === 204) return {};
+  const isCsv = res.headers.get('content-type')?.includes('csv');
+  if(isCsv) return res.blob();
+  const body = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(body.error || 'Erreur serveur');
+  return body;
+}
+
+function toast(msg){
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  setTimeout(()=>el.remove(), 2600);
+}
+
+async function boot(){
+  try{
+    const me = await api('/me');
+    currentUser = me;
+    if(me.mustChangePassword){
+      renderForcedPasswordChange();
+    } else {
+      renderShell();
+    }
+  }catch(e){
+    renderLogin();
+  }
+}
+
+function renderForcedPasswordChange(){
+  document.getElementById('app').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <img src="/assets/logo-full.png" alt="Brain Up">
+        <h1>Changement de mot de passe requis</h1>
+        <p style="font-size:13.5px; color:var(--muted); margin-top:-14px; margin-bottom:18px; text-align:left;">
+          Pour des raisons de sécurité, vous devez définir un nouveau mot de passe avant de continuer
+          (le mot de passe par défaut ne peut pas rester actif).
+        </p>
+        <div id="fpc-error"></div>
+        <form id="fpc-form">
+          <input type="password" id="fpc-current" placeholder="Mot de passe actuel" autocomplete="current-password" required>
+          <input type="password" id="fpc-new" placeholder="Nouveau mot de passe (8+ car., lettre + chiffre)" autocomplete="new-password" required>
+          <button type="submit">Mettre à jour et continuer</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.getElementById('fpc-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const currentPassword = document.getElementById('fpc-current').value;
+    const newPassword = document.getElementById('fpc-new').value;
+    try{
+      await api('/change-password', { method:'POST', body: JSON.stringify({currentPassword, newPassword}) });
+      toast('Mot de passe mis à jour.');
+      currentUser.mustChangePassword = false;
+      renderShell();
+    }catch(err){
+      document.getElementById('fpc-error').innerHTML = `<div class="login-error">${err.message}</div>`;
+    }
+  });
+}
+
+function renderLogin(err){
+  document.getElementById('app').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <img src="/assets/logo-full.png" alt="Brain Up">
+        <h1>Espace administration</h1>
+        ${err ? `<div class="login-error">${err}</div>` : ''}
+        <form id="login-form">
+          <input type="text" id="login-username" placeholder="Identifiant" autocomplete="username" required>
+          <input type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password" required>
+          <button type="submit">Se connecter</button>
+        </form>
+        <p class="login-hint">Identifiants par défaut : admin / BrainUp2026! <br>(à changer après la première connexion)</p>
+      </div>
+    </div>
+  `;
+  document.getElementById('login-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    try{
+      const res = await api('/login', { method:'POST', body: JSON.stringify({username,password}) });
+      currentUser = res;
+      if(res.mustChangePassword) renderForcedPasswordChange();
+      else renderShell();
+    }catch(err){
+      renderLogin(err.message);
+    }
+  });
+}
+
+async function logout(){
+  await api('/logout', { method:'POST' });
+  currentUser = null;
+  renderLogin();
+}
+
+const PAGES = [
+  { key:'dashboard', label:'Tableau de bord' },
+  { key:'bookings', label:'Réservations' },
+  { key:'cities', label:'Villes' },
+  { key:'modules', label:'Modules' },
+  { key:'slots', label:'Créneaux' },
+  { key:'announcements', label:'Annonces' },
+  { key:'rules', label:'Règlement' },
+  { key:'settings', label:'Réglages & compte' },
+];
+
+function renderShell(){
+  document.getElementById('app').innerHTML = `
+    <div class="shell">
+      <div class="sidebar">
+        <div class="brand"><img src="/assets/logo-full.png" alt="Brain Up"><span>Brain Up</span></div>
+        <div class="nav">
+          ${PAGES.map(p=>`<button data-page="${p.key}" class="${activePage===p.key?'active':''}">${ICONS[p.key]} ${p.label}</button>`).join('')}
+        </div>
+        <div class="sidebar-footer">
+          Connecté : <strong>${currentUser.username}</strong>
+          <br><button onclick="logout()">Se déconnecter</button>
+        </div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  `;
+  document.querySelectorAll('.nav button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ activePage = btn.dataset.page; renderShell(); });
+  });
+  loadPage(activePage);
+}
+
+async function loadPage(page){
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty">Chargement…</div>`;
+  try{
+    if(page==='dashboard') return await pageDashboard(content);
+    if(page==='bookings') return await pageBookings(content);
+    if(page==='cities') return await pageCities(content);
+    if(page==='modules') return await pageModules(content);
+    if(page==='slots') return await pageSlots(content);
+    if(page==='announcements') return await pageAnnouncements(content);
+    if(page==='rules') return await pageRules(content);
+    if(page==='settings') return await pageSettings(content);
+  }catch(e){
+    if(e.message === 'PASSWORD_CHANGE_REQUIRED'){ renderForcedPasswordChange(); return; }
+    content.innerHTML = `<div class="empty">Erreur : ${e.message}</div>`;
+  }
+}
+
+/* ================= DASHBOARD ================= */
+async function pageDashboard(content){
+  const s = await api('/stats');
+  content.innerHTML = `
+    <h1 class="page-title">Tableau de bord</h1>
+    <p class="page-sub">Vue d'ensemble de l'activité Brain Up.</p>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num">${s.totalBookings}</div><div class="lbl">Réservations totales</div></div>
+      <div class="stat-card"><div class="num">${s.bookingsThisWeek}</div><div class="lbl">Nouvelles (7 derniers jours)</div></div>
+      <div class="stat-card"><div class="num">${s.totalCities}</div><div class="lbl">Villes actives</div></div>
+      <div class="stat-card"><div class="num">${s.totalModules}</div><div class="lbl">Modules actifs</div></div>
+      <div class="stat-card"><div class="num">${s.upcomingSlots}</div><div class="lbl">Créneaux à venir</div></div>
+    </div>
+    <div class="card">
+      <h3>Prochaines réservations</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Élève</th><th>Module</th><th>Ville</th><th>Date</th><th>Heure</th><th>Statut</th></tr></thead>
+        <tbody>
+          ${s.nextBookings.length===0 ? `<tr><td colspan="6" class="empty">Aucune réservation à venir.</td></tr>` :
+            s.nextBookings.map(b=>`
+              <tr>
+                <td>${b.prenom} ${b.nom}</td>
+                <td>${b.module_title}</td>
+                <td>${b.city_name}</td>
+                <td>${formatDate(b.date)}</td>
+                <td>${b.time.slice(0,5)}</td>
+                <td><span class="badge badge-${b.status}">${statusLabel(b.status)}</span></td>
+              </tr>
+            `).join('')}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  `;
+}
+function formatDate(d){
+  const [y,m,day] = d.split('-');
+  return new Date(y,m-1,day).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function statusLabel(s){
+  return { confirmed:'Confirmée', cancelled:'Annulée', attended:'Présent', absent:'Absent' }[s] || s;
+}
+
+/* ================= BOOKINGS ================= */
+async function pageBookings(content){
+  let filters = { status:'', q:'' };
+  const cities = await api('/cities');
+
+  async function refresh(){
+    const params = new URLSearchParams();
+    if(filters.status) params.set('status', filters.status);
+    if(filters.q) params.set('q', filters.q);
+    const rows = await api('/bookings?' + params.toString());
+    document.getElementById('bookings-table').innerHTML = renderBookingsTable(rows);
+    attachBookingActions();
+  }
+
+  content.innerHTML = `
+    <h1 class="page-title">Réservations</h1>
+    <p class="page-sub">Consultez, filtrez et gérez toutes les réservations.</p>
+    <div class="toolbar">
+      <input type="text" id="search-q" placeholder="Rechercher (nom, e-mail, parent)…" style="min-width:240px;">
+      <select id="filter-status">
+        <option value="">Tous les statuts</option>
+        <option value="confirmed">Confirmée</option>
+        <option value="attended">Présent</option>
+        <option value="absent">Absent</option>
+        <option value="cancelled">Annulée</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="btn btn-outline" id="export-btn">Exporter en CSV</button>
+    </div>
+    <div class="card"><div class="table-wrap" id="bookings-table"></div></div>
+  `;
+
+  document.getElementById('search-q').addEventListener('input', (e)=>{ filters.q = e.target.value; debounceRefresh(refresh); });
+  document.getElementById('filter-status').addEventListener('change', (e)=>{ filters.status = e.target.value; refresh(); });
+  document.getElementById('export-btn').addEventListener('click', async ()=>{
+    const blob = await api('/bookings-export.csv');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'reservations.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function renderBookingsTable(rows){
+    if(rows.length===0) return `<div class="empty">Aucune réservation trouvée.</div>`;
+    return `
+      <table>
+        <thead><tr><th>Élève</th><th>Parent</th><th>Contact</th><th>Module</th><th>Ville</th><th>Date</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          ${rows.map(b=>`
+            <tr>
+              <td>${b.prenom} ${b.nom}</td>
+              <td>${b.parent_name}</td>
+              <td>${b.email}${b.phone ? '<br><span style="color:var(--muted);font-size:12.5px;">'+b.phone+'</span>':''}</td>
+              <td>${b.module_title}</td>
+              <td>${b.city_name}</td>
+              <td>${formatDate(b.date)} ${b.time.slice(0,5)}</td>
+              <td><span class="badge badge-${b.status}">${statusLabel(b.status)}</span></td>
+              <td>
+                <div class="icon-row">
+                  <select class="status-select btn-sm" data-id="${b.id}" style="border:1px solid var(--border); border-radius:6px; padding:5px;">
+                    <option value="confirmed" ${b.status==='confirmed'?'selected':''}>Confirmée</option>
+                    <option value="attended" ${b.status==='attended'?'selected':''}>Présent</option>
+                    <option value="absent" ${b.status==='absent'?'selected':''}>Absent</option>
+                    <option value="cancelled" ${b.status==='cancelled'?'selected':''}>Annulée</option>
+                  </select>
+                  <button class="btn btn-danger btn-sm delete-booking" data-id="${b.id}">Suppr.</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function attachBookingActions(){
+    document.querySelectorAll('.status-select').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        await api(`/bookings/${sel.dataset.id}`, { method:'PATCH', body: JSON.stringify({status: sel.value}) });
+        toast('Statut mis à jour.');
+        refresh();
+      });
+    });
+    document.querySelectorAll('.delete-booking').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Supprimer définitivement cette réservation ?')) return;
+        await api(`/bookings/${btn.dataset.id}`, { method:'DELETE' });
+        toast('Réservation supprimée.');
+        refresh();
+      });
+    });
+  }
+
+  await refresh();
+}
+
+let debounceTimer = null;
+function debounceRefresh(fn){ clearTimeout(debounceTimer); debounceTimer = setTimeout(fn, 350); }
+
+/* ================= CITIES ================= */
+async function pageCities(content){
+  async function refresh(){
+    const cities = await api('/cities');
+    document.getElementById('cities-body').innerHTML = cities.length===0 ? `<div class="empty">Aucune ville.</div>` : `
+      <table>
+        <thead><tr><th>Nom</th><th>Identifiant</th><th>Adresse</th><th>Nouveau</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          ${cities.map(c=>`
+            <tr>
+              <td><strong>${c.name}</strong></td>
+              <td>${c.slug}</td>
+              <td style="color:var(--muted); font-size:13px;">${c.address||''}</td>
+              <td>${c.is_new ? '✅' : '—'}</td>
+              <td><span class="badge badge-${c.active?'active':'inactive'}">${c.active?'Active':'Inactive'}</span></td>
+              <td>
+                <div class="icon-row">
+                  <button class="btn btn-outline btn-sm edit-city" data-id="${c.id}">Modifier</button>
+                  <button class="btn btn-danger btn-sm delete-city" data-id="${c.id}">Suppr.</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.querySelectorAll('.edit-city').forEach(btn=>btn.addEventListener('click', ()=>openCityModal(cities.find(c=>c.id==btn.dataset.id))));
+    document.querySelectorAll('.delete-city').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(!confirm('Supprimer cette ville et tous ses modules/créneaux/réservations liés ?')) return;
+      await api(`/cities/${btn.dataset.id}`, { method:'DELETE' });
+      toast('Ville supprimée.');
+      refresh();
+    }));
+  }
+
+  content.innerHTML = `
+    <h1 class="page-title">Villes</h1>
+    <p class="page-sub">Gérez les espaces de formation disponibles.</p>
+    <div class="toolbar"><div class="spacer"></div><button class="btn btn-primary" id="add-city">+ Ajouter une ville</button></div>
+    <div class="card"><div class="table-wrap" id="cities-body"></div></div>
+  `;
+  document.getElementById('add-city').addEventListener('click', ()=>openCityModal(null));
+
+  function openCityModal(city){
+    const isEdit = !!city;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>${isEdit ? 'Modifier la ville' : 'Ajouter une ville'}</h3>
+        <div class="form-field"><label>Nom</label><input id="m-name" value="${city?.name||''}"></div>
+        <div class="form-field"><label>Identifiant (slug, sans espace)</label><input id="m-slug" value="${city?.slug||''}"></div>
+        <div class="form-field"><label>Adresse</label><input id="m-address" value="${city?.address||''}"></div>
+        <div class="form-field"><label>Lien Google Maps</label><input id="m-maps" value="${city?.maps_url||''}"></div>
+        <div class="checkbox-row"><input type="checkbox" id="m-new" ${city?.is_new?'checked':''}><label for="m-new">Marquer comme "Nouveau"</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="m-active" ${city?.active!==0?'checked':''}><label for="m-active">Ville active (visible publiquement)</label></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="m-cancel">Annuler</button>
+          <button class="btn btn-primary" id="m-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#m-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#m-save').addEventListener('click', async ()=>{
+      const payload = {
+        name: modal.querySelector('#m-name').value.trim(),
+        slug: modal.querySelector('#m-slug').value.trim().toLowerCase().replace(/\s+/g,'-'),
+        address: modal.querySelector('#m-address').value.trim(),
+        maps_url: modal.querySelector('#m-maps').value.trim(),
+        is_new: modal.querySelector('#m-new').checked,
+        active: modal.querySelector('#m-active').checked,
+      };
+      if(!payload.name || !payload.slug){ toast('Nom et identifiant requis.'); return; }
+      try{
+        if(isEdit) await api(`/cities/${city.id}`, { method:'PUT', body: JSON.stringify(payload) });
+        else await api('/cities', { method:'POST', body: JSON.stringify(payload) });
+        toast('Ville enregistrée.');
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  }
+
+  await refresh();
+}
+
+/* ================= MODULES ================= */
+async function pageModules(content){
+  const cities = await api('/cities');
+  async function refresh(){
+    const modules = await api('/modules');
+    document.getElementById('modules-body').innerHTML = modules.length===0 ? `<div class="empty">Aucun module.</div>` : `
+      <table>
+        <thead><tr><th>Titre</th><th>Ville</th><th>Âge</th><th>Jour</th><th>Durée</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          ${modules.map(m=>`
+            <tr>
+              <td><strong>${m.title}</strong><br><span style="color:var(--muted); font-size:12.5px;">${m.description}</span></td>
+              <td>${m.city_name}</td>
+              <td>${m.age_group} ans</td>
+              <td>${m.day_label||'—'}</td>
+              <td>${m.duration_minutes} min</td>
+              <td><span class="badge badge-${m.active?'active':'inactive'}">${m.active?'Actif':'Inactif'}</span></td>
+              <td>
+                <div class="icon-row">
+                  <button class="btn btn-outline btn-sm edit-module" data-id="${m.id}">Modifier</button>
+                  <button class="btn btn-danger btn-sm delete-module" data-id="${m.id}">Suppr.</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.querySelectorAll('.edit-module').forEach(btn=>btn.addEventListener('click', ()=>openModuleModal(modules.find(m=>m.id==btn.dataset.id))));
+    document.querySelectorAll('.delete-module').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(!confirm('Supprimer ce module et tous ses créneaux/réservations liés ?')) return;
+      await api(`/modules/${btn.dataset.id}`, { method:'DELETE' });
+      toast('Module supprimé.');
+      refresh();
+    }));
+  }
+
+  content.innerHTML = `
+    <h1 class="page-title">Modules</h1>
+    <p class="page-sub">Gérez les ateliers proposés dans chaque ville.</p>
+    <div class="toolbar"><div class="spacer"></div><button class="btn btn-primary" id="add-module">+ Ajouter un module</button></div>
+    <div class="card"><div class="table-wrap" id="modules-body"></div></div>
+  `;
+  document.getElementById('add-module').addEventListener('click', ()=>openModuleModal(null));
+
+  function openModuleModal(m){
+    const isEdit = !!m;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>${isEdit?'Modifier le module':'Ajouter un module'}</h3>
+        <div class="form-field"><label>Ville</label>
+          <select id="m-city">${cities.map(c=>`<option value="${c.id}" ${m?.city_id===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+        </div>
+        <div class="form-field"><label>Titre</label><input id="m-title" value="${m?.title||''}"></div>
+        <div class="form-field"><label>Description</label><textarea id="m-desc">${m?.description||''}</textarea></div>
+        <div class="form-row">
+          <div class="form-field"><label>Tranche d'âge</label>
+            <select id="m-age">
+              <option value="7-12" ${m?.age_group==='7-12'?'selected':''}>7-12 ans</option>
+              <option value="13-17" ${m?.age_group==='13-17'?'selected':''}>13-17 ans</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Icône</label>
+            <select id="m-icon">
+              <option value="robot" ${m?.icon==='robot'?'selected':''}>Robot</option>
+              <option value="gamepad" ${m?.icon==='gamepad'?'selected':''}>Manette de jeu</option>
+              <option value="laptop" ${m?.icon==='laptop'?'selected':''}>Ordinateur</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Jour habituel (étiquette)</label><input id="m-day" value="${m?.day_label||''}" placeholder="Ex: Samedi"></div>
+          <div class="form-field"><label>Durée (minutes)</label><input id="m-duration" type="number" value="${m?.duration_minutes||90}"></div>
+        </div>
+        <div class="checkbox-row"><input type="checkbox" id="m-active" ${m?.active!==0?'checked':''}><label for="m-active">Module actif</label></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="m-cancel">Annuler</button>
+          <button class="btn btn-primary" id="m-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#m-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#m-save').addEventListener('click', async ()=>{
+      const payload = {
+        city_id: Number(modal.querySelector('#m-city').value),
+        title: modal.querySelector('#m-title').value.trim(),
+        description: modal.querySelector('#m-desc').value.trim(),
+        age_group: modal.querySelector('#m-age').value,
+        icon: modal.querySelector('#m-icon').value,
+        day_label: modal.querySelector('#m-day').value.trim(),
+        duration_minutes: Number(modal.querySelector('#m-duration').value) || 90,
+        active: modal.querySelector('#m-active').checked,
+      };
+      if(!payload.title){ toast('Le titre est requis.'); return; }
+      try{
+        if(isEdit) await api(`/modules/${m.id}`, { method:'PUT', body: JSON.stringify(payload) });
+        else await api('/modules', { method:'POST', body: JSON.stringify(payload) });
+        toast('Module enregistré.');
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  }
+
+  await refresh();
+}
+
+/* ================= SLOTS ================= */
+async function pageSlots(content){
+  const modules = await api('/modules');
+  async function refresh(){
+    const slots = await api('/slots');
+    document.getElementById('slots-body').innerHTML = slots.length===0 ? `<div class="empty">Aucun créneau.</div>` : `
+      <table>
+        <thead><tr><th>Module</th><th>Ville</th><th>Date</th><th>Heure</th><th>Places</th><th>Réservées</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          ${slots.map(s=>`
+            <tr>
+              <td>${s.module_title}</td>
+              <td>${s.city_name}</td>
+              <td>${formatDate(s.date)}</td>
+              <td>${s.time.slice(0,5)}</td>
+              <td>${s.capacity}</td>
+              <td>${s.booked_count}</td>
+              <td><span class="badge badge-${s.active?'active':'inactive'}">${s.active?'Actif':'Inactif'}</span></td>
+              <td><button class="btn btn-danger btn-sm delete-slot" data-id="${s.id}">Suppr.</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.querySelectorAll('.delete-slot').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(!confirm('Supprimer ce créneau ? Les réservations associées seront aussi supprimées.')) return;
+      await api(`/slots/${btn.dataset.id}`, { method:'DELETE' });
+      toast('Créneau supprimé.');
+      refresh();
+    }));
+  }
+
+  content.innerHTML = `
+    <h1 class="page-title">Créneaux</h1>
+    <p class="page-sub">Ajoutez des créneaux ponctuels ou générez des créneaux récurrents.</p>
+    <div class="toolbar">
+      <button class="btn btn-outline" id="add-single">+ Créneau ponctuel</button>
+      <button class="btn btn-primary" id="add-bulk">+ Générer des créneaux récurrents</button>
+    </div>
+    <div class="card"><div class="table-wrap" id="slots-body"></div></div>
+  `;
+
+  document.getElementById('add-single').addEventListener('click', ()=>{
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Ajouter un créneau</h3>
+        <div class="form-field"><label>Module</label>
+          <select id="s-module">${modules.map(m=>`<option value="${m.id}">${m.title} — ${m.city_name}</option>`).join('')}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Date</label><input type="date" id="s-date"></div>
+          <div class="form-field"><label>Heure</label><input type="time" id="s-time"></div>
+        </div>
+        <div class="form-field"><label>Capacité</label><input type="number" id="s-capacity" value="20"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="s-cancel">Annuler</button>
+          <button class="btn btn-primary" id="s-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#s-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#s-save').addEventListener('click', async ()=>{
+      const payload = {
+        module_id: Number(modal.querySelector('#s-module').value),
+        date: modal.querySelector('#s-date').value,
+        time: modal.querySelector('#s-time').value,
+        capacity: Number(modal.querySelector('#s-capacity').value) || 20,
+      };
+      if(!payload.date || !payload.time){ toast('Date et heure requises.'); return; }
+      try{
+        await api('/slots', { method:'POST', body: JSON.stringify(payload) });
+        toast('Créneau ajouté.');
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  });
+
+  document.getElementById('add-bulk').addEventListener('click', ()=>{
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Générer des créneaux récurrents</h3>
+        <p style="font-size:13px; color:var(--muted); margin-top:-8px;">Ex : "tous les dimanches à 15:30 entre le 1er et le 30 septembre".</p>
+        <div class="form-field"><label>Module</label>
+          <select id="b-module">${modules.map(m=>`<option value="${m.id}">${m.title} — ${m.city_name}</option>`).join('')}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Jour de la semaine</label>
+            <select id="b-weekday">
+              <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
+              <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option>
+              <option value="0">Dimanche</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Heure</label><input type="time" id="b-time" value="15:30"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Du</label><input type="date" id="b-start"></div>
+          <div class="form-field"><label>Au</label><input type="date" id="b-end"></div>
+        </div>
+        <div class="form-field"><label>Capacité par créneau</label><input type="number" id="b-capacity" value="20"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="b-cancel">Annuler</button>
+          <button class="btn btn-primary" id="b-save">Générer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#b-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#b-save').addEventListener('click', async ()=>{
+      const payload = {
+        module_id: Number(modal.querySelector('#b-module').value),
+        weekday: Number(modal.querySelector('#b-weekday').value),
+        time: modal.querySelector('#b-time').value,
+        start_date: modal.querySelector('#b-start').value,
+        end_date: modal.querySelector('#b-end').value,
+        capacity: Number(modal.querySelector('#b-capacity').value) || 20,
+      };
+      if(!payload.start_date || !payload.end_date){ toast('Période requise.'); return; }
+      try{
+        const res = await api('/slots/bulk', { method:'POST', body: JSON.stringify(payload) });
+        toast(`${res.created} créneau(x) créé(s).`);
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  });
+
+  await refresh();
+}
+
+/* ================= ANNOUNCEMENTS ================= */
+async function pageAnnouncements(content){
+  async function refresh(){
+    const items = await api('/announcements');
+    document.getElementById('ann-body').innerHTML = items.length===0 ? `<div class="empty">Aucune annonce.</div>` : items.map(a=>`
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; gap:16px;">
+          <div>
+            <strong>${a.title}</strong>
+            <p style="color:var(--muted); font-size:13.5px; margin:6px 0 0;">${a.body}</p>
+          </div>
+          <div class="icon-row" style="flex-shrink:0;">
+            <span class="badge badge-${a.active?'active':'inactive'}">${a.active?'Active':'Inactive'}</span>
+            <button class="btn btn-outline btn-sm edit-ann" data-id="${a.id}">Modifier</button>
+            <button class="btn btn-danger btn-sm delete-ann" data-id="${a.id}">Suppr.</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    document.querySelectorAll('.edit-ann').forEach(btn=>btn.addEventListener('click', ()=>openAnnModal(items.find(a=>a.id==btn.dataset.id))));
+    document.querySelectorAll('.delete-ann').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(!confirm('Supprimer cette annonce ?')) return;
+      await api(`/announcements/${btn.dataset.id}`, { method:'DELETE' });
+      toast('Annonce supprimée.');
+      refresh();
+    }));
+  }
+
+  content.innerHTML = `
+    <h1 class="page-title">Annonces</h1>
+    <p class="page-sub">Affichées à l'étape "Nouveautés" du parcours de réservation.</p>
+    <div class="toolbar"><div class="spacer"></div><button class="btn btn-primary" id="add-ann">+ Ajouter une annonce</button></div>
+    <div id="ann-body"></div>
+  `;
+  document.getElementById('add-ann').addEventListener('click', ()=>openAnnModal(null));
+
+  function openAnnModal(a){
+    const isEdit = !!a;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>${isEdit ? "Modifier l'annonce" : "Ajouter une annonce"}</h3>
+        <div class="form-field"><label>Titre</label><input id="a-title" value="${a?.title||''}"></div>
+        <div class="form-field"><label>Texte</label><textarea id="a-body">${a?.body||''}</textarea></div>
+        <div class="checkbox-row"><input type="checkbox" id="a-active" ${a?.active!==0?'checked':''}><label for="a-active">Annonce active</label></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="a-cancel">Annuler</button>
+          <button class="btn btn-primary" id="a-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#a-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#a-save').addEventListener('click', async ()=>{
+      const payload = {
+        title: modal.querySelector('#a-title').value.trim(),
+        body: modal.querySelector('#a-body').value.trim(),
+        active: modal.querySelector('#a-active').checked,
+      };
+      if(!payload.title || !payload.body){ toast('Titre et texte requis.'); return; }
+      try{
+        if(isEdit) await api(`/announcements/${a.id}`, { method:'PUT', body: JSON.stringify(payload) });
+        else await api('/announcements', { method:'POST', body: JSON.stringify(payload) });
+        toast('Annonce enregistrée.');
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  }
+
+  await refresh();
+}
+
+/* ================= RULES ================= */
+async function pageRules(content){
+  async function refresh(){
+    const items = await api('/rules');
+    document.getElementById('rules-body').innerHTML = items.length===0 ? `<div class="empty">Aucune règle.</div>` : items.map(r=>`
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; gap:16px; align-items:center;">
+          <p style="margin:0; font-size:14px;">${r.body}</p>
+          <div class="icon-row" style="flex-shrink:0;">
+            <button class="btn btn-outline btn-sm edit-rule" data-id="${r.id}">Modifier</button>
+            <button class="btn btn-danger btn-sm delete-rule" data-id="${r.id}">Suppr.</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    document.querySelectorAll('.edit-rule').forEach(btn=>btn.addEventListener('click', ()=>openRuleModal(items.find(r=>r.id==btn.dataset.id))));
+    document.querySelectorAll('.delete-rule').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(!confirm('Supprimer cette règle ?')) return;
+      await api(`/rules/${btn.dataset.id}`, { method:'DELETE' });
+      toast('Règle supprimée.');
+      refresh();
+    }));
+  }
+
+  content.innerHTML = `
+    <h1 class="page-title">Règlement intérieur</h1>
+    <p class="page-sub">Affiché avant chaque réservation. Les élèves doivent l'accepter pour continuer.</p>
+    <div class="toolbar"><div class="spacer"></div><button class="btn btn-primary" id="add-rule">+ Ajouter une règle</button></div>
+    <div id="rules-body"></div>
+  `;
+  document.getElementById('add-rule').addEventListener('click', ()=>openRuleModal(null));
+
+  function openRuleModal(r){
+    const isEdit = !!r;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>${isEdit?'Modifier la règle':'Ajouter une règle'}</h3>
+        <div class="form-field"><label>Icône</label>
+          <select id="r-icon">
+            ${['book','edit','userCheck','calendar','users','alert','laptop','clock','ban'].map(i=>`<option value="${i}" ${r?.icon===i?'selected':''}>${i}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-field"><label>Texte</label><textarea id="r-body">${r?.body||''}</textarea></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="r-cancel">Annuler</button>
+          <button class="btn btn-primary" id="r-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#r-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#r-save').addEventListener('click', async ()=>{
+      const payload = { icon: modal.querySelector('#r-icon').value, body: modal.querySelector('#r-body').value.trim() };
+      if(!payload.body){ toast('Le texte est requis.'); return; }
+      try{
+        if(isEdit) await api(`/rules/${r.id}`, { method:'PUT', body: JSON.stringify(payload) });
+        else await api('/rules', { method:'POST', body: JSON.stringify(payload) });
+        toast('Règle enregistrée.');
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  }
+
+  await refresh();
+}
+
+/* ================= SETTINGS ================= */
+async function pageSettings(content){
+  const settings = await api('/settings');
+  content.innerHTML = `
+    <h1 class="page-title">Réglages & compte</h1>
+    <p class="page-sub">Paramètres généraux du site et sécurité du compte administrateur.</p>
+
+    <div class="card">
+      <h3>Paramètres généraux</h3>
+      <div class="form-field"><label>Nom du site</label><input id="set-name" value="${settings.site_name||''}"></div>
+      <div class="form-field"><label>Téléphone de contact</label><input id="set-phone" value="${settings.contact_phone||''}"></div>
+      <div class="form-field"><label>Absences max. par mois avant blocage</label><input id="set-absences" type="number" value="${settings.max_absences_per_month||2}"></div>
+      <button class="btn btn-primary" id="save-settings">Enregistrer</button>
+    </div>
+
+    <div class="card">
+      <h3>Changer mon mot de passe</h3>
+      <div class="form-field"><label>Mot de passe actuel</label><input type="password" id="cur-pass"></div>
+      <div class="form-field"><label>Nouveau mot de passe (8+ caractères, au moins une lettre et un chiffre)</label><input type="password" id="new-pass"></div>
+      <button class="btn btn-orange" id="change-pass">Mettre à jour le mot de passe</button>
+    </div>
+
+    <div class="card">
+      <h3>Historique des connexions (50 dernières)</h3>
+      <div class="table-wrap" id="login-log-body">Chargement…</div>
+    </div>
+  `;
+
+  api('/login-log').then(rows=>{
+    document.getElementById('login-log-body').innerHTML = rows.length===0 ? `<div class="empty">Aucune tentative enregistrée.</div>` : `
+      <table>
+        <thead><tr><th>Date</th><th>Identifiant</th><th>Adresse IP</th><th>Résultat</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`
+            <tr>
+              <td>${new Date(r.created_at+'Z').toLocaleString('fr-FR')}</td>
+              <td>${r.username}</td>
+              <td>${r.ip||'—'}</td>
+              <td>${r.success ? '<span class="badge badge-active">Réussie</span>' : `<span class="badge badge-cancelled">Échec${r.reason?' — '+r.reason:''}</span>`}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }).catch(()=>{ document.getElementById('login-log-body').innerHTML = `<div class="empty">Impossible de charger l'historique.</div>`; });
+
+  document.getElementById('save-settings').addEventListener('click', async ()=>{
+    try{
+      await api('/settings', { method:'PUT', body: JSON.stringify({
+        site_name: document.getElementById('set-name').value,
+        contact_phone: document.getElementById('set-phone').value,
+        max_absences_per_month: document.getElementById('set-absences').value,
+      })});
+      toast('Réglages enregistrés.');
+    }catch(e){ toast(e.message); }
+  });
+
+  document.getElementById('change-pass').addEventListener('click', async ()=>{
+    const currentPassword = document.getElementById('cur-pass').value;
+    const newPassword = document.getElementById('new-pass').value;
+    try{
+      await api('/change-password', { method:'POST', body: JSON.stringify({currentPassword, newPassword}) });
+      toast('Mot de passe mis à jour.');
+      document.getElementById('cur-pass').value = '';
+      document.getElementById('new-pass').value = '';
+    }catch(e){ toast(e.message); }
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
