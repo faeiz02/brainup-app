@@ -307,7 +307,12 @@ function renderForcedPasswordChange(){
       currentUser.mustChangePassword = false;
       renderShell();
     }catch(err){
-      document.getElementById('fpc-error').innerHTML = `<div class="login-error">${err.message}</div>`;
+      const errBox = document.getElementById('fpc-error');
+      if(errBox) {
+        errBox.innerHTML = `<div class="login-error">${err.message}</div>`;
+      } else {
+        toast(err.message);
+      }
     }
   });
 }

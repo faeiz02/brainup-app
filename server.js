@@ -60,7 +60,7 @@ app.use(cookieSession({
   secret: SESSION_SECRET,
   maxAge: 12 * 60 * 60 * 1000, // 12h — durée réduite par rapport aux 24h initiales
   httpOnly: true,          // inaccessible en JavaScript côté navigateur
-  sameSite: 'strict',      // empêche l'envoi du cookie depuis un autre site (protection CSRF)
+  sameSite: 'lax',         // permet la transmission du cookie lors des navigations navigateur
   secure: isProduction,    // cookie transmis uniquement en HTTPS en production
 }));
 
