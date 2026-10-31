@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Réservez vos séances Brain Up (robotique, jeux vidéo) pour vos enfants et adolescents.">
+<meta name="theme-color" content="#0d5fb0">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
+<link rel="shortcut icon" href="/assets/favicon.ico">
+<title>Brain Up</title>
+<style>
+  :root{
+    --blue: #2196f3;
+    --blue-dark: #0d5fb0;
+    --blue-light: #e8f3fd;
+    --bg: #eaf3fb;
+    --card-bg: #ffffff;
+    --text: #1a2230;
+    --text-muted: #5c6b7a;
+    --orange: #f7941e;
+    --orange-dark: #e07d05;
+    --border: #e2ecf1;
+    --confirm-blue: #1565c0;
+  }
+  *{box-sizing:border-box;}
+  html{ font-size: 17px; }
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 32px 16px;
+    font-size: 16px;
+  }
+  .app{
+    width:100%;
+    max-width: 940px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(20,60,90,0.12);
+    overflow:hidden;
+    min-height: 560px;
+    display:flex;
+    flex-direction:column;
+  }
+  header.topbar{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .back-btn{
+    position:absolute;
+    left:20px;
+    top:50%;
+    transform:translateY(-50%);
+    background:none;
+    border:none;
+    cursor:pointer;
+    color:var(--text);
+    font-size:22px;
+    display:flex;
+    align-items:center;
+    padding:4px;
+    border-radius:8px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .back-btn.hidden{ visibility:hidden; }
+  .back-btn:hover{background:var(--blue-light);}
+  .back-btn:focus-visible{ outline:3px solid rgba(33,150,243,.35); outline-offset:2px; }
+  .brand{ display:flex; align-items:center; justify-content:center; gap:10px; }
+  .brand img{ height:64px; width:auto; display:block; }
+  .brand-name{ color:var(--blue-dark); font-size:25px; font-weight:800; }
+  .progress-track{ height:6px; background: var(--border); width:100%; }
+  .progress-fill{ height:100%; background: linear-gradient(90deg, var(--blue), var(--blue-dark)); transition: width .35s ease; border-radius: 0 4px 4px 0; }
+  main{ padding: 32px 28px 40px; flex:1; overflow-y:auto; }
+  .step-title{ text-align:center; font-size: 31px; font-weight:800; color: var(--blue-dark); margin: 6px 0 8px; }
+  .step-subtitle{ text-align:center; color: var(--text-muted); font-size:17px; margin: 0 0 30px; }
+
+  .grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }
+  @media (max-width:720px){ .grid{grid-template-columns: repeat(2,1fr);} }
+  .choice-card{
+    border: 1px solid var(--border); border-radius: 12px; padding: 20px 14px; text-align:center;
+    cursor:pointer; background:#fff; transition: box-shadow .15s ease, border-color .15s ease, transform .1s ease;
+    position:relative; display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .choice-card:hover{ border-color: var(--blue); box-shadow: 0 4px 16px rgba(33,150,243,0.18); transform: translateY(-2px); }
+  .choice-card .icon{ color: var(--blue); }
+  .choice-card .label{ font-weight:700; font-size:17px; }
+  .badge-new{ position:absolute; top:-9px; right:8px; background: var(--orange); color:#fff; font-size:12px; font-weight:700; padding:2px 9px; border-radius:10px; }
+
+  .age-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:20px; max-width:600px; margin: 0 auto; }
+  .age-card{ border:1px solid var(--border); border-radius:14px; padding: 34px 20px; text-align:center; cursor:pointer; background:#fff; transition: box-shadow .15s ease, border-color .15s ease, transform .1s ease; }
+  .age-card:hover{ border-color: var(--blue); box-shadow: 0 4px 16px rgba(33,150,243,0.18); transform: translateY(-2px); }
+  .age-card .icon{ color: var(--blue); margin-bottom:14px; }
+  .age-card .title{ font-weight:800; font-size:20px; }
+  .age-card .sub{ color: var(--text-muted); font-size:16px; margin-top:4px; }
+
+  .rule-list{ display:flex; flex-direction:column; gap:2px; margin-bottom:24px; }
+  .rule-item{ display:flex; gap:16px; align-items:flex-start; padding:16px 6px; border-bottom: 1px solid var(--border); }
+  .rule-item .icon{ color: var(--blue); flex-shrink:0; margin-top:2px; }
+  .rule-item p{ margin:0; line-height:1.55; font-size:16.5px; }
+  .rule-item a{ color: var(--blue-dark); }
+
+  .btn{ border:none; border-radius: 8px; padding: 14px 24px; font-size:16.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; transition: filter .15s ease, transform .1s ease; }
+  .btn:hover{ filter:brightness(1.05); }
+  .btn:active{ transform: scale(.98); }
+  .btn:disabled{ opacity:.6; cursor:not-allowed; }
+  .btn-orange{ background: var(--orange); color:#fff; }
+  .btn-orange:hover{ background: var(--orange-dark); }
+  .btn-blue{ background: var(--confirm-blue); color:#fff; }
+  .center-actions{ display:flex; justify-content:center; margin-top:10px; }
+
+  .announce-list{ display:flex; flex-direction:column; gap:14px; margin-bottom:28px; }
+  .announce-item{ display:flex; gap:16px; align-items:flex-start; border:1px solid var(--border); border-radius: 12px; padding:18px; }
+  .announce-item .avatar{ width:44px; height:44px; border-radius:50%; background: var(--blue-light); display:flex; align-items:center; justify-content:center; color: var(--blue); flex-shrink:0; }
+  .announce-item h4{ margin:0 0 4px; color: var(--blue-dark); font-size:18px; }
+  .announce-item p{ margin:0; color: var(--text-muted); font-size:15.5px; line-height:1.5; }
+  .announce-item a{ color: var(--blue-dark); }
+
+  .module-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
+  @media (max-width:720px){ .module-grid{grid-template-columns:1fr;} }
+  .module-card{ border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#fff; display:flex; flex-direction:column; }
+  .module-body{ padding:20px; flex:1; }
+  .module-head{ display:flex; gap:14px; align-items:flex-start; }
+  .module-head .icon{ color: var(--blue); flex-shrink:0; }
+  .module-head h3{ margin:0 0 4px; font-size:19px; }
+  .module-meta{ display:flex; align-items:center; gap:6px; color:var(--text-muted); font-size:14px; white-space:nowrap; margin-left:auto; }
+  .module-desc{ color:var(--text-muted); font-size:15.5px; margin:8px 0 14px; }
+  .day-tag{ display:inline-block; background: #fdeed2; color:#8a5a00; font-size:13px; font-weight:700; padding:4px 10px; border-radius:6px; }
+  .module-footer{ background: var(--blue-light); text-align:center; padding:14px; font-weight:700; font-size:16.5px; color: var(--blue-dark); cursor:pointer; border-top:1px solid var(--border); }
+  .module-footer:hover{ background:#dcf0f8; }
+
+  .booking-layout{ display:flex; gap:0; border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .cal-panel{ flex:1; padding:24px; min-width:0; }
+  .slots-panel{ width:230px; border-left:1px solid var(--border); padding:24px 16px; display:flex; flex-direction:column; gap:10px; }
+  @media (max-width:720px){ .booking-layout{flex-direction:column;} .slots-panel{width:100%; border-left:none; border-top:1px solid var(--border);} }
+  .cal-nav{ display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:18px; font-weight:700; }
+  .cal-nav button{ background:none; border:none; cursor:pointer; color:var(--text); font-size:18px; padding:4px 8px; border-radius:6px; }
+  .cal-nav button:hover{ background: var(--blue-light); }
+  .cal-grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:6px; text-align:center; }
+  .cal-grid .dow{ font-size:13px; color:var(--text-muted); font-weight:600; padding-bottom:6px; }
+  .cal-day{ padding:10px 0; border-radius:50%; cursor:pointer; font-size:15.5px; position:relative; color: var(--text); }
+  .cal-day.disabled{ color:#c3d0d8; cursor:default; }
+  .cal-day.has-slot::after{ content:""; position:absolute; bottom:2px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background: var(--blue); }
+  .cal-day:not(.disabled):hover{ background: var(--blue-light); }
+  .cal-day.selected{ background: var(--blue); color:#fff; font-weight:700; }
+  .cal-day.selected::after{ display:none; }
+  .no-slot-msg{ text-align:center; padding: 30px 10px; color: var(--text-muted); font-size:14px; }
+  .no-slot-msg a{ color: var(--blue-dark); font-weight:700; display:block; margin-top:6px; cursor:pointer; }
+  .slots-panel h4{ margin:0 0 4px; font-size:14px; color:var(--text-muted); font-weight:600; }
+  .slot-btn{ border:1px solid var(--blue); background:#fff; color: var(--blue-dark); border-radius:8px; padding:11px 13px; text-align:left; cursor:pointer; font-weight:700; font-size:16.5px; }
+  .slot-btn small{ display:block; font-weight:400; color:var(--text-muted); font-size:13px; margin-top:2px; }
+  .slot-btn:hover{ background: var(--blue-light); }
+
+  .event-card{ border:1px solid var(--border); border-radius:14px; padding:26px; }
+  .event-brand{ text-align:center; margin-bottom:10px; }
+  .event-brand img{ height:64px; }
+  .event-club{ text-align:center; color: var(--text-muted); font-size:14px; margin-bottom:2px; }
+  .event-title{ text-align:center; font-size:25px; font-weight:800; margin: 0 0 16px; }
+  .event-meta{ display:flex; flex-direction:column; gap:10px; font-size:15.5px; color:var(--text); margin-bottom:18px; }
+  .event-meta div{ display:flex; gap:10px; align-items:flex-start; }
+  .event-meta .icon{ color:var(--text-muted); flex-shrink:0; margin-top:2px; }
+  .event-desc{ border-top:1px solid var(--border); padding-top:16px; font-size:15.5px; line-height:1.6; }
+
+  .form-block{ margin-top:26px; }
+  .form-block h3{ margin:0 0 18px; font-size:20px; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media (max-width:600px){ .field-row{grid-template-columns:1fr;} }
+  .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+  .field label{ font-size:15.5px; font-weight:600; }
+  .field label .req{ color:#e0553c; }
+  .field input{ border:1px solid var(--border); border-radius:8px; padding:12px 13px; font-size:16.5px; font-family:inherit; outline:none; }
+  .field input:focus{ border-color: var(--blue); box-shadow:0 0 0 3px rgba(33,150,243,0.18); }
+  .field .error-msg{ color:#d0453a; font-size:13.5px; }
+  .phone-field{ display:flex; align-items:stretch; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .phone-field .flag{ display:flex; align-items:center; gap:6px; padding:0 10px; background:#f7fafb; border-right:1px solid var(--border); font-size:15px; }
+  .phone-field input{ border:none; flex:1; padding:12px 13px; font-size:16.5px; font-family:inherit; outline:none; }
+  .legal-text{ font-size:14px; color:var(--text-muted); margin: 4px 0 20px; line-height:1.6; }
+  .form-error{ background:#fdecea; color:#8a2c22; padding:12px 14px; border-radius:8px; font-size:14.5px; margin-bottom:16px; }
+
+  .success-wrap{ text-align:center; padding: 40px 10px; }
+  .success-icon{ color: var(--orange); margin-bottom:18px; }
+  .success-wrap h2{ color: var(--blue-dark); margin:0 0 10px; font-size:26px; }
+  .success-wrap p{ color: var(--text-muted); max-width:440px; margin:0 auto; line-height:1.6; font-size:16.5px; }
+
+  .loading{ text-align:center; padding:60px 20px; color:var(--text-muted); }
+  .spinner{ width:36px; height:36px; border:4px solid var(--blue-light); border-top-color: var(--blue); border-radius:50%; margin:0 auto 16px; animation:spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+  .empty-msg{ text-align:center; color:var(--text-muted); padding:40px 20px; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+const API = '/api';
+
+const state = {
+  step: 1,
+  city: null,
+  ageGroup: null,
+  module: null,
+  calMonth: new Date(),
+  selectedDate: null,
+  selectedSlot: null,
+  slotsCache: {},
+  form: { prenom:"", nom:"", email:"", parent:"", phone:"" },
+  formError: null,
+  submitting: false,
+  data: { cities: [], rules: [], announcements: [], modules: [], slots: [] },
+};
+
+const TOTAL_STEPS = 7;
+
+function icon(name, size=22){
+  const s = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+  const icons = {
+    pin: `<svg ${s}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    back: `<svg ${s}><path d="M15 18l-6-6 6-6"/></svg>`,
+    smile: `<svg ${s} width="42" height="42"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>`,
+    user: `<svg ${s} width="42" height="42"><path d="M20 21a8 8 0 1 0-16 0"/><circle cx="12" cy="8" r="5"/></svg>`,
+    book: `<svg ${s}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>`,
+    edit: `<svg ${s}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>`,
+    userCheck: `<svg ${s}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`,
+    calendar: `<svg ${s}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+    users: `<svg ${s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    alert: `<svg ${s}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L14.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>`,
+    laptop: `<svg ${s}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>`,
+    clock: `<svg ${s}><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+    ban: `<svg ${s}><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>`,
+    megaphone: `<svg ${s}><path d="m3 11 18-5v12L3 14v-3Z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>`,
+    gamepad: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>`,
+    robot: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="16" height="10" rx="2"/><circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/><path d="M12 9V5"/><circle cx="12" cy="3.5" r="1.5"/><path d="M2 13v3"/><path d="M22 13v3"/></svg>`,
+    chevronLeft: `<svg ${s} width="18" height="18"><path d="m15 18-6-6 6-6"/></svg>`,
+    chevronRight: `<svg ${s} width="18" height="18"><path d="m9 18 6-6-6-6"/></svg>`,
+    mapPin: `<svg ${s} width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    globe: `<svg ${s} width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z"/></svg>`,
+    check: `<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`
+  };
+  return icons[name] || icons.robot;
+}
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+async function api(path, opts={}){
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  const body = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(body.error || 'Erreur serveur');
+  return body;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header class="topbar">
+      <button class="back-btn ${state.step === 1 ? 'hidden' : ''}" type="button" onclick="goBack()" aria-label="Retour" title="Retour">${icon('back',22)}</button>
+      <div class="brand"><img src="/assets/logo-full.png" alt="Brain-Up"><span class="brand-name">Brain-Up</span></div>
+    </header>
+    <div class="progress-track"><div class="progress-fill" style="width:${Math.min(state.step,TOTAL_STEPS)/TOTAL_STEPS*100}%"></div></div>
+    <main id="main"></main>
+  `;
+  renderStep();
+}
+
+function loadingHtml(){
+  return `<div class="loading"><div class="spinner"></div>Chargement…</div>`;
+}
+
+async function renderStep(){
+  document.querySelector('.back-btn')?.classList.toggle('hidden', state.step === 1);
+  document.querySelector('.progress-fill')?.style.setProperty('width', `${Math.min(state.step, TOTAL_STEPS) / TOTAL_STEPS * 100}%`);
+  const main = document.getElementById('main');
+  main.innerHTML = loadingHtml();
+  try{
+    switch(state.step){
+      case 1: return await stepCity();
+      case 2: return stepAge();
+      case 3: return await stepRules();
+      case 4: return await stepAnnounce();
+      case 5: return await stepModules();
+      case 6: return await stepCalendar();
+      case 7: return stepSuccess();
+    }
+  }catch(e){
+    main.innerHTML = `<div class="empty-msg">Une erreur est survenue : ${e.message}<br><br><button class="btn btn-blue" onclick="renderStep()">Réessayer</button></div>`;
+  }
+}
+
+function goBack(){
+  if(state.step===6 && state.selectedSlot){ state.selectedSlot=null; renderStep(); return; }
+  if(state.step===6 && state.selectedDate){ state.selectedDate=null; renderStep(); return; }
+  if(state.step>1){ state.step -= 1; renderStep(); }
+  else if(window.history.length > 1){ window.history.back(); }
+}
+
+/* ---------- STEP 1: city ---------- */
+async function stepCity(){
+  const cities = await api('/cities');
+  state.data.cities = cities;
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Choisissez votre ville</h1>
+    <p class="step-subtitle">Pour vous proposer l'espace de formation le plus proche de chez vous.</p>
+    <div class="grid">
+      ${cities.map(c=>`
+        <div class="choice-card" onclick='selectCity(${JSON.stringify(c.slug)})'>
+          ${c.is_new ? '<span class="badge-new">Nouveau</span>':''}
+          <span class="icon">${icon('pin',26)}</span>
+          <span class="label">${c.name}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+function selectCity(slug){
+  state.city = state.data.cities.find(c=>c.slug===slug);
+  state.step=2; renderStep();
+}
+
+/* ---------- STEP 2: age ---------- */
+function stepAge(){
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Quelle est la tranche d'âge de votre enfant ?</h1>
+    <p class="step-subtitle">Cela nous aide à personnaliser les modules pour vous.</p>
+    <div class="age-grid">
+      <div class="age-card" onclick="selectAge('7-12')">
+        <div class="icon">${icon('smile',42)}</div>
+        <div class="title">Enfants</div>
+        <div class="sub">7-12 ans</div>
+      </div>
+      <div class="age-card" onclick="selectAge('13-17')">
+        <div class="icon">${icon('user',42)}</div>
+        <div class="title">Adolescents</div>
+        <div class="sub">13-17 ans</div>
+      </div>
+    </div>
+  `;
+}
+function selectAge(a){ state.ageGroup=a; state.step=3; renderStep(); }
+
+/* ---------- STEP 3: rules ---------- */
+async function stepRules(){
+  const rules = await api('/rules');
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Règlement intérieur</h1>
+    <p class="step-subtitle">Veuillez le lire attentivement et l'accepter avant de réserver.</p>
+    <div class="rule-list">
+      ${rules.map(r=>`
+        <div class="rule-item">
+          <span class="icon">${icon(r.icon,22)}</span>
+          <p>${linkify(r.body)}</p>
+        </div>
+      `).join('')}
+    </div>
+    <div class="center-actions">
+      <button class="btn btn-orange" onclick="acceptRules()">J'accepte le règlement intérieur</button>
+    </div>
+  `;
+}
+function linkify(text){
+  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function acceptRules(){ state.step=4; renderStep(); }
+
+/* ---------- STEP 4: announcements ---------- */
+async function stepAnnounce(){
+  const announcements = await api('/announcements');
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Nouveautés et annonces</h1>
+    <p class="step-subtitle">Restez informé de nos derniers événements.</p>
+    <div class="announce-list">
+      ${announcements.map(a=>`
+        <div class="announce-item">
+          <span class="avatar">${icon('megaphone',20)}</span>
+          <div><h4>${a.title}</h4><p>${linkify(a.body)}</p></div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="center-actions">
+      <button class="btn btn-orange" onclick="skipAnnounce()">Passer</button>
+    </div>
+  `;
+}
+function skipAnnounce(){ state.step=5; renderStep(); }
+
+/* ---------- STEP 5: modules ---------- */
+async function stepModules(){
+  const { modules } = await api(`/cities/${state.city.slug}/modules?ageGroup=${encodeURIComponent(state.ageGroup)}`);
+  state.data.modules = modules;
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Choisissez un module : ${state.city.name}</h1>
+    <p class="step-subtitle">Cliquez sur un module pour ouvrir le calendrier de réservation.</p>
+    ${modules.length === 0 ? `<div class="empty-msg">Aucun module disponible pour cette tranche d'âge dans cette ville pour le moment.</div>` : `
+    <div class="module-grid">
+      ${modules.map(m=>`
+        <div class="module-card">
+          <div class="module-body">
+            <div class="module-head">
+              <span class="icon">${icon(m.icon)}</span>
+              <div><h3>${m.title}</h3></div>
+              <div class="module-meta">${icon('clock',16)} ${m.age_group} ans</div>
+            </div>
+            <p class="module-desc">${m.description}</p>
+            ${m.day_label ? `<span class="day-tag">${m.day_label}</span>` : ''}
+          </div>
+          <div class="module-footer" onclick="selectModule(${m.id})">Réserver une séance</div>
+        </div>
+      `).join('')}
+    </div>`}
+  `;
+}
+function selectModule(id){
+  state.module = state.data.modules.find(m=>m.id===id);
+  state.step = 6;
+  state.selectedDate = null;
+  state.selectedSlot = null;
+  state.calMonth = new Date();
+  state.slotsCache = {};
+  renderStep();
+}
+
+/* ---------- STEP 6: calendar + slots + form ---------- */
+async function stepCalendar(){
+  if(state.selectedSlot){ return renderConfirmForm(); }
+
+  const monthKey = `${state.calMonth.getFullYear()}-${String(state.calMonth.getMonth()+1).padStart(2,'0')}`;
+  if(!state.slotsCache[monthKey]){
+    const res = await api(`/modules/${state.module.id}/slots?month=${monthKey}`);
+    state.slotsCache[monthKey] = res.slots;
+  }
+
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Réservez votre séance</h1>
+    <p class="step-subtitle">Choisissez un créneau ci-dessous pour finaliser votre réservation.</p>
+    <div class="booking-layout">
+      <div class="cal-panel">
+        ${renderCalendarNav()}
+        ${renderCalendarGrid(state.slotsCache[monthKey])}
+      </div>
+      <div class="slots-panel">${renderSlotsPanel(state.slotsCache[monthKey])}</div>
+    </div>
+  `;
+}
+function monthLabel(d){ return d.toLocaleDateString('fr-FR',{month:'long', year:'numeric'}); }
+function renderCalendarNav(){
+  return `<div class="cal-nav"><button onclick="changeMonth(-1)">${icon('chevronLeft')}</button><span>${capitalize(monthLabel(state.calMonth))}</span><button onclick="changeMonth(1)">${icon('chevronRight')}</button></div>`;
+}
+function changeMonth(delta){
+  const d = new Date(state.calMonth);
+  d.setMonth(d.getMonth()+delta);
+  state.calMonth = d;
+  renderStep();
+}
+function renderCalendarGrid(slots){
+  const d = state.calMonth;
+  const year = d.getFullYear(), month = d.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay()+6)%7;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const slotDays = new Set((slots||[]).map(s=>Number(s.date.slice(8,10))));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let cells = '';
+  for(let i=0;i<startOffset;i++) cells += `<div></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const hasSlot = slotDays.has(day);
+    const thisDate = new Date(year,month,day);
+    const isSelected = state.selectedDate && state.selectedDate.getFullYear()===year && state.selectedDate.getMonth()===month && state.selectedDate.getDate()===day;
+    const isPast = thisDate < today;
+    const clickable = hasSlot && !isPast;
+    cells += `<div class="cal-day ${clickable? '': 'disabled'} ${hasSlot?'has-slot':''} ${isSelected?'selected':''}" ${clickable?`onclick="selectDate(${year},${month},${day})"`:''}>${day}</div>`;
+  }
+
+  const noSlotsThisMonth = !slots || slots.length===0;
+  return `
+    <div class="cal-grid">
+      <div class="dow">lun.</div><div class="dow">mar.</div><div class="dow">mer.</div><div class="dow">jeu.</div><div class="dow">ven.</div><div class="dow">sam.</div><div class="dow">dim.</div>
+      ${cells}
+    </div>
+    ${noSlotsThisMonth ? `
+      <div class="no-slot-msg">
+        Aucun créneau disponible ce mois-ci
+        <a onclick="changeMonth(1)">Voir le mois suivant &rsaquo;</a>
+      </div>
+    ` : ''}
+  `;
+}
+function selectDate(year,month,day){ state.selectedDate = new Date(year,month,day); renderStep(); }
+function renderSlotsPanel(slots){
+  if(!state.selectedDate) return `<p style="color:var(--text-muted); font-size:14px;">Sélectionnez une date disponible dans le calendrier.</p>`;
+  const y = state.selectedDate.getFullYear(), m = state.selectedDate.getMonth(), d = state.selectedDate.getDate();
+  const daySlots = (slots||[]).filter(s=>{
+    const [sy,sm,sd] = s.date.split('-').map(Number);
+    return sy===y && sm===m+1 && sd===d;
+  });
+  const label = state.selectedDate.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'});
+  return `
+    <h4>${capitalize(label)}</h4>
+    ${daySlots.map(s=>`
+      <div class="slot-btn" onclick='selectSlot(${s.id})'>
+        ${s.time.slice(0,5)}
+        <small>${s.remaining} place${s.remaining>1?'s':''} restante${s.remaining>1?'s':''}</small>
+      </div>
+    `).join('')}
+  `;
+}
+function selectSlot(slotId){
+  const monthKey = `${state.calMonth.getFullYear()}-${String(state.calMonth.getMonth()+1).padStart(2,'0')}`;
+  state.selectedSlot = state.slotsCache[monthKey].find(s=>s.id===slotId);
+  renderStep();
+}
+
+function renderConfirmForm(){
+  const dateLabel = state.selectedDate.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const [h,mn] = state.selectedSlot.time.split(':');
+  const endMinutes = (parseInt(h)*60+parseInt(mn)) + (state.module.duration_minutes||90);
+  const endLabel = `${String(Math.floor(endMinutes/60)).padStart(2,'0')}:${String(endMinutes%60).padStart(2,'0')}`;
+  const f = state.form;
+  document.getElementById('main').innerHTML = `
+    <h1 class="step-title">Réservez votre séance</h1>
+    <p class="step-subtitle">Choisissez un créneau ci-dessous pour finaliser votre réservation.</p>
+    <div class="event-card">
+      <div class="event-brand"><img src="/assets/logo-full.png" alt="Brain Up"></div>
+      <p class="event-club">Brain Up Club</p>
+      <h2 class="event-title">${icon(state.module.icon,22)} ${state.module.title} - ${state.city.name}</h2>
+      <div class="event-meta">
+        <div>${icon('clock',18)} <span>${state.module.duration_minutes} min</span></div>
+        <div>${icon('mapPin',18)} <span>${state.city.address}${state.city.maps_url ? ' — ' + state.city.maps_url : ''}</span></div>
+        <div>${icon('calendar',18)} <span>${state.selectedSlot.time.slice(0,5)} - ${endLabel}, ${capitalize(dateLabel)}</span></div>
+        <div>${icon('globe',18)} <span>Heure d'Afrique de l'Ouest</span></div>
+      </div>
+      <div class="event-desc">
+        ${state.module.description}<br>
+        Ville : ${state.city.name} - Élèves de ${state.ageGroup.replace('-',' à ')} ans ${state.module.day_label ? '- ' + state.module.day_label : ''}
+      </div>
+
+      <div class="form-block">
+        <h3>Indiquez vos informations</h3>
+        ${state.formError ? `<div class="form-error">${state.formError}</div>` : ''}
+        <div class="field-row">
+          <div class="field">
+            <label>Prénom <span class="req">*</span></label>
+            <input id="f-prenom" value="${f.prenom}" oninput="state.form.prenom=this.value">
+          </div>
+          <div class="field">
+            <label>Nom <span class="req">*</span></label>
+            <input id="f-nom" value="${f.nom}" oninput="state.form.nom=this.value">
+          </div>
+        </div>
+        <div class="field">
+          <label>E-mail <span class="req">*</span></label>
+          <input id="f-email" type="email" value="${f.email}" oninput="state.form.email=this.value">
+        </div>
+        <div class="field">
+          <label>Le prénom et nom du parent <span class="req">*</span></label>
+          <input id="f-parent" value="${f.parent}" oninput="state.form.parent=this.value">
+        </div>
+        <div class="field">
+          <label>Envoyer un SMS à</label>
+          <div class="phone-field">
+            <span class="flag">🇹🇳 +216</span>
+            <input id="f-phone" value="${f.phone}" oninput="state.form.phone=this.value">
+          </div>
+        </div>
+        <p class="legal-text">En poursuivant, vous confirmez que vous avez lu et accepté le <a href="#" onclick="state.step=3; renderStep(); return false;">règlement intérieur</a> de Brain Up.</p>
+        <button class="btn btn-blue" id="confirm-btn" onclick="confirmBooking()" ${state.submitting?'disabled':''}>${state.submitting ? 'Envoi en cours…' : "Confirmer l'événement"}</button>
+      </div>
+    </div>
+  `;
+}
+
+async function confirmBooking(){
+  const f = state.form;
+  if(!f.prenom || !f.nom || !f.email || !f.parent){
+    state.formError = "Merci de remplir tous les champs obligatoires.";
+    renderStep();
+    return;
+  }
+  state.submitting = true;
+  state.formError = null;
+  renderStep();
+  try{
+    const { booking } = await api('/bookings', {
+      method:'POST',
+      body: JSON.stringify({
+        slotId: state.selectedSlot.id,
+        prenom: f.prenom, nom: f.nom, email: f.email, parent: f.parent, phone: f.phone,
+      }),
+    });
+    state.lastBooking = booking;
+    state.step = 7;
+  }catch(e){
+    state.formError = e.message;
+  }finally{
+    state.submitting = false;
+    renderStep();
+  }
+}
+
+function stepSuccess(){
+  document.getElementById('main').innerHTML = `
+    <div class="success-wrap">
+      <div class="success-icon">${icon('check')}</div>
+      <h2>Réservation confirmée !</h2>
+      <p>Merci ${state.form.prenom}, votre séance de "${state.module.title}" à ${state.city.name} le ${capitalize(state.selectedDate.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}))} à ${state.selectedSlot.time.slice(0,5)} est confirmée. Un e-mail de confirmation a été envoyé à ${state.form.email}.</p>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

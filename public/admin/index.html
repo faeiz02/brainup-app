@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<title>BrainUp — Administration & Gestion du Centre</title>
+<style>
+  :root {
+    --blue: #2196f3; --blue-dark: #0d5fb0; --blue-light: #e8f3fd;
+    --orange: #f7941e; --orange-dark: #e07d05;
+    --bg: #f4f7fa; --card: #ffffff; --text: #1a2230; --muted: #5c6b7a; --border: #e2ecf1;
+    --danger: #e0453a; --success: #2fa84f; --purple: #7b1fa2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+  a { color: var(--blue-dark); text-decoration: none; }
+  button { font-family: inherit; }
+
+  /* Login & Forced Password */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .login-card { background: #fff; border-radius: 16px; box-shadow: 0 10px 40px rgba(20,60,90,.12); padding: 40px 34px; width: 100%; max-width: 390px; text-align: center; }
+  .login-card img { height: 65px; margin-bottom: 12px; }
+  .login-card h1 { font-size: 20px; margin: 0 0 20px; color: var(--blue-dark); }
+  .login-card input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14.5px; margin-bottom: 14px; }
+  .login-card button { width: 100%; padding: 13px; border: none; border-radius: 8px; background: var(--blue-dark); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .login-card button:hover { filter: brightness(1.08); }
+  .login-error { background: #fdecea; color: #8a2c22; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; text-align: left; }
+  .login-hint { margin-top: 18px; font-size: 12px; color: var(--muted); }
+
+  /* Shell */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 250px; background: #0f2540; color: #fff; flex-shrink: 0; display: flex; flex-direction: column; }
+  .sidebar .brand { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .sidebar .brand img { height: 32px; }
+  .sidebar .brand span { font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+  .sidebar .role-pill { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.15); margin-left: auto; text-transform: uppercase; font-weight: 700; }
+  .nav { flex: 1; padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
+  .nav button { display: flex; align-items: center; gap: 11px; text-align: left; background: none; border: none; color: #c7d3e0; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.15s; }
+  .nav button:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .nav button.active { background: var(--blue); color: #fff; font-weight: 700; }
+  .sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; color: #9fb2c7; }
+  .sidebar-footer button { background: none; border: none; color: #ff8f80; cursor: pointer; font-size: 13px; padding: 0; margin-top: 6px; }
+
+  .content { flex: 1; padding: 28px 34px; max-width: 1300px; width: 100%; }
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+  .page-title { font-size: 24px; font-weight: 800; margin: 0 0 4px; color: var(--blue-dark); }
+  .page-sub { color: var(--muted); font-size: 14px; margin: 0; }
+
+  /* Dashboard Stat Grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .stat-card .num { font-size: 26px; font-weight: 800; color: var(--blue-dark); }
+  .stat-card .lbl { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .stat-card.alert-card .num { color: var(--orange-dark); }
+
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .card h3 { margin: 0 0 14px; font-size: 16px; color: var(--blue-dark); font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; padding: 10px 12px; color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafcff; }
+  .table-wrap { overflow-x: auto; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  .toolbar input, .toolbar select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; background: #fff; }
+  .spacer { flex: 1; }
+
+  .btn { border: none; border-radius: 8px; padding: 9px 15px; font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: filter 0.15s; }
+  .btn:hover { filter: brightness(1.07); }
+  .btn-primary { background: var(--blue-dark); color: #fff; }
+  .btn-orange { background: var(--orange); color: #fff; }
+  .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+  .btn-danger { background: #fff; border: 1px solid #f3c9c5; color: var(--danger); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-sm { padding: 6px 11px; font-size: 12.5px; }
+
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 700; }
+  .badge-confirmed, .badge-active, .badge-enregistre, .badge-paye { background: #e3f6e8; color: var(--success); }
+  .badge-cancelled, .badge-inactive, .badge-annule, .badge-perdu { background: #fdecea; color: var(--danger); }
+  .badge-attended { background: #e8f3fd; color: var(--blue-dark); }
+  .badge-absent, .badge-a_relancer, .badge-partiellement_paye { background: #fdf1de; color: #8a5a00; }
+  .badge-a_appeler, .badge-a_confirmer, .badge-en_attente, .badge-non_paye { background: #f3e8fd; color: var(--purple); }
+  .badge-converti { background: #e0f2f1; color: #00695c; }
+
+  /* Modals */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,20,35,.5); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .modal { background: #fff; border-radius: 14px; padding: 26px; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; }
+  .modal-large { max-width: 750px; }
+  .modal h3 { margin: 0 0 16px; font-size: 18px; color: var(--blue-dark); }
+  .form-field { margin-bottom: 14px; }
+  .form-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+  .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .form-field textarea { min-height: 75px; resize: vertical; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .checkbox-row input { width: auto; }
+
+  .empty { text-align: center; color: var(--muted); padding: 36px 20px; font-size: 14px; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: #0f2540; color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 14px; z-index: 100; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+  .icon-row { display: flex; align-items: center; gap: 6px; }
+
+  /* Printable Receipt Styles */
+  .receipt-box { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
+  .receipt-header { border-bottom: 2px solid var(--border); padding-bottom: 14px; margin-bottom: 16px; }
+  .receipt-title { font-size: 20px; font-weight: 800; color: var(--blue-dark); margin: 0; }
+  .receipt-ref { font-size: 14px; font-weight: 700; color: var(--muted); }
+  .receipt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; font-size: 13.5px; }
+  .receipt-footer { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 20px; display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+
+  @media print {
+    body * { visibility: hidden !important; }
+    #printable-receipt, #printable-receipt * { visibility: visible !important; }
+    #printable-receipt { position: fixed; left: 0; top: 0; width: 100%; margin: 0; padding: 24px; box-shadow: none; border: none; }
+    .no-print { display: none !important; }
+  }
+
+  @media (max-width: 880px) {
+    .shell { flex-direction: column; }
+    .sidebar { width: 100%; flex-direction: row; align-items: center; overflow-x: auto; }
+    .nav { flex-direction: row; padding: 8px; }
+    .sidebar-footer { display: none; }
+    .content { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const API = '/api/admin';
+let currentUser = null;
+let activePage = 'dashboard';
+let toastTimer = null;
+
+const ICONS = {
+  dashboard: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>`,
+  prospects: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  appointments: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="15" r="2"/></svg>`,
+  families: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+  enrollments: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+  payments: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+  sessions: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  bookings: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+  slots: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  modules: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`,
+  cities: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  users: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  settings: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>`,
+};
+
+async function api(path, opts={}){
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if(res.status === 204) return {};
+  const isCsv = res.headers.get('content-type')?.includes('csv');
+  if(isCsv) return res.blob();
+  const text = await res.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch(e) {
+    throw new Error('Réponse serveur non-JSON (le serveur Node.js doit être redémarré pour charger les nouvelles routes).');
+  }
+  if(!res.ok) throw new Error(body.error || 'Erreur serveur');
+  return body;
+}
+
+function toast(msg){
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.remove(), 2800);
+}
+
+function formatDate(dStr){
+  if(!dStr) return '—';
+  const parts = dStr.slice(0, 10).split('-');
+  if(parts.length !== 3) return dStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function statusBadge(s){
+  const labels = {
+    a_appeler: 'À appeler', contacte: 'Contacté', interesse: 'Intéressé', a_relancer: 'À relancer',
+    converti: 'Converti', perdu: 'Perdu', injoignable: 'Injoignable',
+    a_confirmer: 'À confirmer', confirme: 'Confirmé', reporte: 'Reporté', realise: 'Réalisé', annule: 'Annulé',
+    en_attente: 'En attente', active: 'Active', suspendue: 'Suspendue', terminee: 'Terminée', annulee: 'Annulée',
+    enregistre: 'Enregistré', non_paye: 'Non payé', partiellement_paye: 'Partiel', paye: 'Payé',
+    attended: 'Présent', absent: 'Absent', absent_excuse: 'Excusé', confirmed: 'Confirmée', cancelled: 'Annulée'
+  };
+  return `<span class="badge badge-${s}">${labels[s] || s}</span>`;
+}
+
+function getPagesForRole(role){
+  const all = [
+    { key:'dashboard', label:'Tableau de bord', roles:['admin','accueil','compta','coach'] },
+    { key:'prospects', label:'CRM & Prospects', roles:['admin','accueil'] },
+    { key:'appointments', label:'Rendez-vous', roles:['admin','accueil'] },
+    { key:'families', label:'Familles & Enfants', roles:['admin','accueil','compta'] },
+    { key:'enrollments', label:'Inscriptions', roles:['admin','accueil','compta'] },
+    { key:'payments', label:'Caisse & Règlements', roles:['admin','compta'] },
+    { key:'sessions', label:'Séances & Appel', roles:['admin','accueil','coach'] },
+    { key:'bookings', label:'Réservations Web', roles:['admin','accueil'] },
+    { key:'slots', label:'Créneaux & Planning', roles:['admin','accueil'] },
+    { key:'modules', label:'Modules & Villes', roles:['admin'] },
+    { key:'users', label:'Équipe & Accès', roles:['admin'] },
+    { key:'settings', label:'Réglages & Compte', roles:['admin'] },
+  ];
+  return all.filter(p => p.roles.includes(role || 'admin'));
+}
+
+async function boot(){
+  try{
+    const me = await api('/me');
+    currentUser = me;
+    if(me.mustChangePassword){
+      renderForcedPasswordChange();
+    } else {
+      const allowed = getPagesForRole(currentUser.role);
+      if(!allowed.some(p => p.key === activePage)){
+        activePage = allowed[0].key;
+      }
+      renderShell();
+    }
+  }catch(e){
+    renderLogin();
+  }
+}
+
+function renderLogin(err){
+  document.getElementById('app').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <img src="/assets/logo-full.png" alt="BrainUp">
+        <h1>Connexion Gestion</h1>
+        ${err ? `<div class="login-error">${err}</div>` : ''}
+        <form id="login-form">
+          <input type="text" id="login-username" placeholder="Identifiant" autocomplete="username" required>
+          <input type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password" required>
+          <button type="submit">Se connecter</button>
+        </form>
+        <p class="login-hint">BrainUp Innovation Academy — Système Central</p>
+      </div>
+    </div>
+  `;
+  document.getElementById('login-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    try{
+      const res = await api('/login', {
+        method:'POST',
+        body: JSON.stringify({
+          username: document.getElementById('login-username').value,
+          password: document.getElementById('login-password').value
+        })
+      });
+      currentUser = res;
+      if(res.mustChangePassword) renderForcedPasswordChange();
+      else {
+        const allowed = getPagesForRole(currentUser.role);
+        activePage = allowed[0].key;
+        renderShell();
+      }
+    }catch(err){
+      renderLogin(err.message);
+    }
+  });
+}
+
+function renderForcedPasswordChange(){
+  document.getElementById('app').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <img src="/assets/logo-full.png" alt="BrainUp">
+        <h1>Nouveau mot de passe requis</h1>
+        <p style="font-size:13.5px; color:var(--muted); margin-bottom:18px;">
+          Pour des raisons de sécurité, veuillez définir votre mot de passe personnel avant de continuer.
+        </p>
+        <div id="fpc-error"></div>
+        <form id="fpc-form">
+          <input type="password" id="fpc-current" placeholder="Mot de passe actuel" required>
+          <input type="password" id="fpc-new" placeholder="Nouveau mot de passe (8+ car., lettre + chiffre)" required>
+          <button type="submit">Mettre à jour et continuer</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.getElementById('fpc-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    try{
+      await api('/change-password', {
+        method:'POST',
+        body: JSON.stringify({
+          currentPassword: document.getElementById('fpc-current').value,
+          newPassword: document.getElementById('fpc-new').value
+        })
+      });
+      toast('Mot de passe mis à jour.');
+      currentUser.mustChangePassword = false;
+      renderShell();
+    }catch(err){
+      document.getElementById('fpc-error').innerHTML = `<div class="login-error">${err.message}</div>`;
+    }
+  });
+}
+
+async function logout(){
+  await api('/logout', { method:'POST' });
+  currentUser = null;
+  renderLogin();
+}
+
+function renderShell(){
+  const pages = getPagesForRole(currentUser.role);
+  document.getElementById('app').innerHTML = `
+    <div class="shell">
+      <div class="sidebar">
+        <div class="brand">
+          <img src="/assets/logo-full.png" alt="BrainUp">
+          <span>BrainUp</span>
+          <span class="role-pill">${currentUser.role || 'Admin'}</span>
+        </div>
+        <div class="nav">
+          ${pages.map(p=>`<button data-page="${p.key}" class="${activePage===p.key?'active':''}">${ICONS[p.key] || ''} ${p.label}</button>`).join('')}
+        </div>
+        <div class="sidebar-footer">
+          Utilisateur : <strong>${currentUser.username}</strong>
+          <br><button onclick="logout()">Se déconnecter</button>
+        </div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  `;
+  document.querySelectorAll('.nav button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ activePage = btn.dataset.page; renderShell(); });
+  });
+  loadPage(activePage);
+}
+
+async function loadPage(page){
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty">Chargement de la page…</div>`;
+  try{
+    if(page==='dashboard') return await pageDashboard(content);
+    if(page==='prospects') return await pageProspects(content);
+    if(page==='appointments') return await pageAppointments(content);
+    if(page==='families') return await pageFamilies(content);
+    if(page==='enrollments') return await pageEnrollments(content);
+    if(page==='payments') return await pagePayments(content);
+    if(page==='sessions') return await pageSessions(content);
+    if(page==='bookings') return await pageBookings(content);
+    if(page==='slots') return await pageSlots(content);
+    if(page==='modules') return await pageModules(content);
+    if(page==='users') return await pageUsers(content);
+    if(page==='settings') return await pageSettings(content);
+  }catch(e){
+    if(e.message === 'PASSWORD_CHANGE_REQUIRED'){ renderForcedPasswordChange(); return; }
+    content.innerHTML = `<div class="empty">Erreur : ${e.message}</div>`;
+  }
+}
+
+/* ================= 1. TABLEAU DE BORD (CDC §12.1) ================= */
+async function pageDashboard(content){
+  const [s, m] = await Promise.all([
+    api('/stats').catch(()=>({})),
+    api('/dashboard-metrics').catch(()=>({}))
+  ]);
+
+  const canManageCRM = ['admin', 'accueil'].includes(currentUser?.role);
+  const canManageEnrollments = ['admin', 'accueil', 'compta'].includes(currentUser?.role);
+  const isCoach = currentUser?.role === 'coach';
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Tableau de bord quotidien</h1>
+        <p class="page-sub">Indicateurs clés et pilotage des opérations du centre.</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        ${isCoach ? `
+          <button class="btn btn-primary btn-sm" onclick="loadPage('sessions')">📋 Mes Séances & Feuille d'Appel</button>
+        ` : `
+          ${canManageCRM ? `<button class="btn btn-outline btn-sm" onclick="openProspectModal()">+ Prospect</button>` : ''}
+          ${canManageCRM ? `<button class="btn btn-outline btn-sm" onclick="openAppointmentModal()">+ RDV</button>` : ''}
+          ${canManageEnrollments ? `<button class="btn btn-primary btn-sm" onclick="openEnrollmentModal()">+ Inscription</button>` : ''}
+        `}
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card ${m.prospectsToCall > 0 ? 'alert-card' : ''}">
+        <div class="num">${m.prospectsToCall ?? 0}</div>
+        <div class="lbl">Prospects à relancer</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">${m.todayAppointments ?? 0}</div>
+        <div class="lbl">RDV du jour</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">${m.activeEnrollments ?? 0}</div>
+        <div class="lbl">Inscriptions actives</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">${(m.monthCollected || 0).toLocaleString()} DT</div>
+        <div class="lbl">Encaissé ce mois</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">${m.todaySessions ?? 0}</div>
+        <div class="lbl">Séances aujourd'hui</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+      <div class="card">
+        <h3>Prochaines réservations confirmées</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Élève</th><th>Module</th><th>Date & Heure</th><th>Statut</th></tr></thead>
+            <tbody>
+              ${(!s.nextBookings || s.nextBookings.length===0) ? `<tr><td colspan="4" class="empty">Aucune réservation récente.</td></tr>` :
+                s.nextBookings.slice(0, 6).map(b=>`
+                  <tr>
+                    <td><strong>${b.prenom} ${b.nom}</strong></td>
+                    <td>${b.module_title}</td>
+                    <td>${formatDate(b.date)} ${b.time.slice(0,5)}</td>
+                    <td>${statusBadge(b.status)}</td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Alertes & Actions requises</h3>
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:14px;">
+          ${m.lateTasks > 0 ? `
+            <div style="background:#fdecea; border-left:4px solid var(--danger); padding:10px 14px; border-radius:0 8px 8px 0;">
+              ⚠️ <strong>${m.lateTasks} relance(s) commerciale(s) en retard.</strong>
+            </div>
+          ` : `
+            <div style="background:#e3f6e8; border-left:4px solid var(--success); padding:10px 14px; border-radius:0 8px 8px 0;">
+              ✔ Aucune relance en retard.
+            </div>
+          `}
+          ${m.expiringEnrollments > 0 ? `
+            <div style="background:#fdf1de; border-left:4px solid var(--orange); padding:10px 14px; border-radius:0 8px 8px 0;">
+              ⏳ <strong>${m.expiringEnrollments} inscription(s) expire(nt)</strong> dans les 7 prochains jours.
+            </div>
+          ` : ''}
+          <div style="background:var(--blue-light); border-left:4px solid var(--blue); padding:10px 14px; border-radius:0 8px 8px 0;">
+            📊 Remplissage global des séances : <strong>${m.totalBookingsCount || 0}</strong> réservations pour <strong>${m.totalSlotsCapacity || 0}</strong> places ouvertes.
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ================= 2. CRM & PROSPECTS (CDC §5) ================= */
+async function pageProspects(content){
+  let statusFilter = '';
+  let searchQ = '';
+
+  async function refresh(){
+    const params = new URLSearchParams();
+    if(statusFilter) params.set('status', statusFilter);
+    if(searchQ) params.set('q', searchQ);
+    const rawProspects = await api('/prospects?' + params.toString());
+    const prospects = Array.isArray(rawProspects) ? rawProspects : [];
+    const tasks = await api('/tasks?view=late').catch(()=>[]);
+
+    document.getElementById('prospects-list').innerHTML = prospects.length === 0 ? `<tr><td colspan="7" class="empty">Aucun prospect trouvé.</td></tr>` :
+      prospects.map(p => `
+        <tr>
+          <td><strong>${p.name}</strong></td>
+          <td>${p.phone}</td>
+          <td>${p.source}</td>
+          <td>${statusBadge(p.status)}</td>
+          <td>${p.next_follow_up ? formatDate(p.next_follow_up) : '—'}</td>
+          <td style="color:var(--muted); font-size:12.5px;">${p.notes || '—'}</td>
+          <td>
+            <div class="icon-row">
+              <button class="btn btn-outline btn-sm" onclick="openProspectModal(${p.id})">Gérer</button>
+              ${p.status !== 'converti' ? `<button class="btn btn-success btn-sm" onclick="convertProspect(${p.id})">Convertir</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">CRM & Gestion des Prospects</h1>
+        <p class="page-sub">Suivi commercial, relances et conversion des familles.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new-prospect">+ Nouveau prospect</button>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="prospect-search" placeholder="Rechercher par nom ou tél…" style="min-width:240px;">
+      <select id="prospect-status">
+        <option value="">Tous les statuts commerciaux</option>
+        <option value="a_appeler">À appeler</option>
+        <option value="contacte">Contacté</option>
+        <option value="interesse">Intéressé</option>
+        <option value="a_relancer">À relancer</option>
+        <option value="converti">Converti</option>
+        <option value="perdu">Perdu</option>
+        <option value="injoignable">Injoignable</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nom prospect</th><th>Téléphone</th><th>Source</th><th>Statut</th><th>Prochaine relance</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="prospects-list"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-prospect').addEventListener('click', ()=>openProspectModal());
+  document.getElementById('prospect-search').addEventListener('input', (e)=>{ searchQ = e.target.value; debounceRefresh(refresh); });
+  document.getElementById('prospect-status').addEventListener('change', (e)=>{ statusFilter = e.target.value; refresh(); });
+
+  await refresh();
+}
+
+async function openProspectModal(id = null){
+  let p = null;
+  if(id){
+    const list = await api(`/prospects?q=`);
+    p = list.find(x => x.id === id);
+  }
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>${p ? 'Fiche Prospect : ' + p.name : 'Nouveau Prospect'}</h3>
+      <div id="dup-warning" style="display:none; background:#fdecea; color:#8a2c22; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>
+      <div class="form-field"><label>Nom complet</label><input id="p-name" value="${p?.name || ''}"></div>
+      <div class="form-row">
+        <div class="form-field"><label>Téléphone (principal)</label><input id="p-phone" value="${p?.phone || ''}"></div>
+        <div class="form-field"><label>Email (facultatif)</label><input id="p-email" value="${p?.email || ''}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Source du contact</label>
+          <select id="p-source">
+            ${['Facebook','WhatsApp','Téléphone','Site web','Recommandation','Visite','Autre'].map(s=>`
+              <option value="${s.toLowerCase()}" ${p?.source===s.toLowerCase()?'selected':''}>${s}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="form-field"><label>Statut commercial</label>
+          <select id="p-status">
+            ${['a_appeler','contacte','interesse','a_relancer','converti','perdu','injoignable'].map(st=>`
+              <option value="${st}" ${p?.status===st?'selected':''}>${st}</option>
+            `).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-field"><label>Date de prochaine relance</label><input type="date" id="p-follow" value="${p?.next_follow_up || ''}"></div>
+      <div class="form-field"><label>Historique / Notes</label><textarea id="p-notes">${p?.notes || ''}</textarea></div>
+      <div class="modal-actions">
+        ${p ? `<button class="btn btn-outline" id="p-book-rdv">Planifier RDV</button>` : ''}
+        <button class="btn btn-outline" id="p-cancel">Fermer</button>
+        <button class="btn btn-primary" id="p-save">Enregistrer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#p-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+
+  if(p){
+    modal.querySelector('#p-book-rdv').addEventListener('click', ()=>{
+      modal.remove();
+      openAppointmentModal(null, p.id);
+    });
+  }
+
+  modal.querySelector('#p-save').addEventListener('click', async ()=>{
+    const payload = {
+      name: modal.querySelector('#p-name').value.trim(),
+      phone: modal.querySelector('#p-phone').value.trim(),
+      email: modal.querySelector('#p-email').value.trim(),
+      source: modal.querySelector('#p-source').value,
+      status: modal.querySelector('#p-status').value,
+      next_follow_up: modal.querySelector('#p-follow').value || null,
+      notes: modal.querySelector('#p-notes').value.trim(),
+    };
+    if(!payload.name || !payload.phone){ toast('Nom et téléphone requis.'); return; }
+    try{
+      if(p){
+        await api(`/prospects/${p.id}`, { method:'PATCH', body: JSON.stringify(payload) });
+      } else {
+        await api('/prospects', { method:'POST', body: JSON.stringify(payload) });
+      }
+      toast('Prospect enregistré.');
+      modal.remove();
+      loadPage('prospects');
+    }catch(e){
+      if(e.message && e.message.includes('existe déjà')){
+        modal.querySelector('#dup-warning').style.display = 'block';
+        modal.querySelector('#dup-warning').textContent = e.message;
+      } else {
+        toast(e.message);
+      }
+    }
+  });
+}
+
+async function convertProspect(id){
+  if(!confirm("Convertir ce prospect en dossier Famille ? Une fiche Famille sera créée automatiquement.")) return;
+  try{
+    const res = await api(`/prospects/${id}/convert`, { method:'POST' });
+    toast('Prospect converti avec succès en Famille !');
+    loadPage('families');
+  }catch(e){ toast(e.message); }
+}
+
+/* ================= 3. RENDEZ-VOUS (CDC §6) ================= */
+async function pageAppointments(content){
+  let statusFilter = '';
+  async function refresh(){
+    const params = new URLSearchParams();
+    if(statusFilter) params.set('status', statusFilter);
+    const rawAppointments = await api('/appointments?' + params.toString());
+    const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
+    document.getElementById('appointments-list').innerHTML = appointments.length === 0 ? `<tr><td colspan="7" class="empty">Aucun rendez-vous.</td></tr>` :
+      appointments.map(a => `
+        <tr>
+          <td><strong>${a.prospect_name || 'Prospect'}</strong><br><span style="color:var(--muted); font-size:12px;">${a.phone || ''}</span></td>
+          <td>${formatDate(a.date_time)} ${a.date_time.slice(11,16)}</td>
+          <td>${a.type}</td>
+          <td>${statusBadge(a.status)}</td>
+          <td>${statusBadge(a.attendance || 'non_renseignee')}</td>
+          <td>${a.result || '—'}</td>
+          <td>
+            <div class="icon-row">
+              <button class="btn btn-outline btn-sm" onclick="openAppointmentModal(${a.id})">Modifier</button>
+              <button class="btn btn-orange btn-sm" onclick="rescheduleAppointment(${a.id})">Reporter</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Rendez-vous Découverte & Orientation</h1>
+        <p class="page-sub">Planification des entretiens avec les familles, qualifications et reports.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new-app">+ Planifier un RDV</button>
+    </div>
+
+    <div class="toolbar">
+      <select id="app-status">
+        <option value="">Tous les statuts de RDV</option>
+        <option value="a_confirmer">À confirmer</option>
+        <option value="confirme">Confirmé</option>
+        <option value="reporte">Reporté</option>
+        <option value="realise">Réalisé</option>
+        <option value="annule">Annulé</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Prospect</th><th>Date & Heure</th><th>Type</th><th>Statut</th><th>Présence</th><th>Résultat</th><th>Actions</th></tr></thead>
+          <tbody id="appointments-list"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-app').addEventListener('click', ()=>openAppointmentModal());
+  document.getElementById('app-status').addEventListener('change', (e)=>{ statusFilter = e.target.value; refresh(); });
+  await refresh();
+}
+
+async function openAppointmentModal(id = null, presetProspectId = null){
+  try{
+    const rawProspects = await api('/prospects');
+    const prospects = Array.isArray(rawProspects) ? rawProspects : [];
+    let a = null;
+    if(id){
+      const list = await api('/appointments');
+      a = list.find(x => x.id === id);
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>${a ? 'Modifier le Rendez-vous' : 'Planifier un Rendez-vous'}</h3>
+        <div class="form-field"><label>Prospect concerné</label>
+          <select id="a-prospect" ${a?'disabled':''}>
+            ${prospects.length === 0 ? '<option value="">(Aucun prospect enregistré - créez d\'abord un prospect)</option>' :
+              prospects.map(p=>`<option value="${p.id}" ${(a?.prospect_id===p.id || presetProspectId===p.id)?'selected':''}>${p.name} (${p.phone})</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Date et heure</label><input type="datetime-local" id="a-datetime" value="${a ? a.date_time.slice(0,16) : ''}"></div>
+          <div class="form-field"><label>Type</label>
+            <select id="a-type">
+              <option value="decouverte" ${a?.type==='decouverte'?'selected':''}>Découverte</option>
+              <option value="orientation" ${a?.type==='orientation'?'selected':''}>Orientation</option>
+              <option value="inscription" ${a?.type==='inscription'?'selected':''}>Inscription</option>
+              <option value="suivi" ${a?.type==='suivi'?'selected':''}>Suivi</option>
+            </select>
+          </div>
+        </div>
+        ${a ? `
+          <div class="form-row">
+            <div class="form-field"><label>Statut</label>
+              <select id="a-status">
+                <option value="a_confirmer" ${a.status==='a_confirmer'?'selected':''}>À confirmer</option>
+                <option value="confirme" ${a.status==='confirme'?'selected':''}>Confirmé</option>
+                <option value="realise" ${a.status==='realise'?'selected':''}>Réalisé</option>
+                <option value="annule" ${a.status==='annule'?'selected':''}>Annulé</option>
+              </select>
+            </div>
+            <div class="form-field"><label>Présence</label>
+              <select id="a-attendance">
+                <option value="non_renseignee" ${a.attendance==='non_renseignee'?'selected':''}>Non renseignée</option>
+                <option value="present" ${a.attendance==='present'?'selected':''}>Présent</option>
+                <option value="absent" ${a.attendance==='absent'?'selected':''}>Absent</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-field"><label>Résultat de l'entretien</label>
+            <select id="a-result">
+              <option value="">Sélectionner…</option>
+              <option value="inscription" ${a.result==='inscription'?'selected':''}>Inscription</option>
+              <option value="reflexion" ${a.result==='reflexion'?'selected':''}>À réfléchir</option>
+              <option value="relance" ${a.result==='relance'?'selected':''}>À relancer</option>
+              <option value="refus" ${a.result==='refus'?'selected':''}>Refus</option>
+            </select>
+          </div>
+        ` : ''}
+        <div class="form-field"><label>Notes & Commentaires</label><textarea id="a-notes">${a?.notes||''}</textarea></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="a-cancel">Annuler</button>
+          <button class="btn btn-primary" id="a-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#a-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+
+    modal.querySelector('#a-save').addEventListener('click', async ()=>{
+      const prospectVal = modal.querySelector('#a-prospect').value;
+      if(!prospectVal){ toast('Veuillez d\'abord sélectionner ou créer un prospect.'); return; }
+      const dt = modal.querySelector('#a-datetime').value;
+      if(!dt){ toast('Date et heure requises.'); return; }
+      try{
+        if(a){
+          await api(`/appointments/${a.id}`, {
+            method:'PATCH',
+            body: JSON.stringify({
+              status: modal.querySelector('#a-status').value,
+              attendance: modal.querySelector('#a-attendance').value,
+              result: modal.querySelector('#a-result').value,
+              notes: modal.querySelector('#a-notes').value.trim()
+            })
+          });
+        } else {
+          await api('/appointments', {
+            method:'POST',
+            body: JSON.stringify({
+              prospect_id: Number(prospectVal),
+              date_time: dt.replace('T', ' '),
+              type: modal.querySelector('#a-type').value,
+              notes: modal.querySelector('#a-notes').value.trim()
+            })
+          });
+        }
+        toast('Rendez-vous enregistré.');
+        modal.remove();
+        loadPage('appointments');
+      }catch(e){ toast(e.message); }
+    });
+  }catch(err){
+    toast(err.message || 'Action non autorisée pour ce rôle.');
+  }
+}
+
+function rescheduleAppointment(id){
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Reporter le rendez-vous (CDC §6.2)</h3>
+      <p style="font-size:13px; color:var(--muted); margin-top:-6px;">L'ancien rendez-vous sera conservé dans l'historique et un nouveau créneau sera généré.</p>
+      <div class="form-field"><label>Nouvelle date et heure</label><input type="datetime-local" id="resched-dt" required></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="r-cancel">Annuler</button>
+        <button class="btn btn-orange" id="r-confirm">Confirmer le report</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#r-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#r-confirm').addEventListener('click', async ()=>{
+    const dt = modal.querySelector('#resched-dt').value;
+    if(!dt){ toast('Veuillez choisir la nouvelle date.'); return; }
+    try{
+      await api(`/appointments/${id}/reschedule`, {
+        method:'POST',
+        body: JSON.stringify({ date_time: dt.replace('T', ' ') })
+      });
+      toast('Rendez-vous reporté avec succès.');
+      modal.remove();
+      loadPage('appointments');
+    }catch(e){ toast(e.message); }
+  });
+}
+
+/* ================= 4. FAMILLES & DOSSIERS ENFANTS (CDC §7) ================= */
+async function pageFamilies(content){
+  let searchQ = '';
+  async function refresh(){
+    const rawList = await api(`/families?q=${encodeURIComponent(searchQ)}`);
+    const list = Array.isArray(rawList) ? rawList : [];
+    document.getElementById('families-list').innerHTML = list.length === 0 ? `<tr><td colspan="5" class="empty">Aucune famille trouvée.</td></tr>` :
+      list.map(f => `
+        <tr>
+          <td><strong>${f.parent_name}</strong></td>
+          <td>${f.phone}</td>
+          <td>${f.email || '—'}</td>
+          <td>${f.address || '—'}</td>
+          <td>
+            <div class="icon-row">
+              <button class="btn btn-outline btn-sm" onclick="openFamilyDetails(${f.id})">Fiche & Enfants</button>
+              <button class="btn btn-primary btn-sm" onclick="openAddChildModal(${f.id})">+ Enfant</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Familles & Dossiers Enfants</h1>
+        <p class="page-sub">Gestion des fiches familiales, coordonnées et dossiers individuels des élèves.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new-fam">+ Nouvelle famille</button>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="fam-search" placeholder="Rechercher par parent ou téléphone…" style="min-width:280px;">
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Parent / Tuteur</th><th>Téléphone</th><th>Email</th><th>Adresse</th><th>Actions</th></tr></thead>
+          <tbody id="families-list"><tr><td colspan="5" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-fam').addEventListener('click', ()=>openNewFamilyModal());
+  document.getElementById('fam-search').addEventListener('input', (e)=>{ searchQ = e.target.value; debounceRefresh(refresh); });
+  await refresh();
+}
+
+function openNewFamilyModal(){
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Créer une fiche Famille</h3>
+      <div class="form-field"><label>Nom et prénom du parent / tuteur</label><input id="nf-parent" required></div>
+      <div class="form-row">
+        <div class="form-field"><label>Téléphone</label><input id="nf-phone" required></div>
+        <div class="form-field"><label>Email</label><input id="nf-email"></div>
+      </div>
+      <div class="form-field"><label>Adresse</label><input id="nf-address"></div>
+      <div class="form-field"><label>CIN (donnée sensible, facultative)</label><input id="nf-cin" placeholder="Numéro CIN si justifié"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="nf-cancel">Annuler</button>
+        <button class="btn btn-primary" id="nf-save">Créer la famille</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#nf-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#nf-save').addEventListener('click', async ()=>{
+    const parent_name = modal.querySelector('#nf-parent').value.trim();
+    const phone = modal.querySelector('#nf-phone').value.trim();
+    if(!parent_name || !phone){ toast('Nom et téléphone requis.'); return; }
+    try{
+      const res = await api('/families', {
+        method:'POST',
+        body: JSON.stringify({
+          parent_name, phone,
+          email: modal.querySelector('#nf-email').value.trim(),
+          address: modal.querySelector('#nf-address').value.trim(),
+          cin: modal.querySelector('#nf-cin').value.trim() || null
+        })
+      });
+      toast('Famille créée avec succès.');
+      modal.remove();
+      openFamilyDetails(res.id);
+    }catch(e){ toast(e.message); }
+  });
+}
+
+async function openFamilyDetails(id){
+  const f = await api(`/families/${id}`);
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal modal-large">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h2 style="margin:0 0 4px; color:var(--blue-dark);">Famille ${f.parent_name}</h2>
+          <div style="font-size:13.5px; color:var(--muted);">
+            📞 ${f.phone} | ✉️ ${f.email || 'Pas d\'email'} | 📍 ${f.address || 'Adresse non renseignée'}
+            <br>CIN : <strong>${f.cin || 'Non renseignée'}</strong>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" id="fd-close">✕ Fermer</button>
+      </div>
+
+      <div style="margin-top:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0;">Enfants rattachés (${f.children.length})</h3>
+          <button class="btn btn-primary btn-sm" id="fd-add-kid">+ Ajouter un enfant</button>
+        </div>
+        ${f.children.length === 0 ? `<div class="empty">Aucun enfant enregistré dans cette famille.</div>` : `
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Prénom & Nom</th><th>Date naissance</th><th>Niveau</th><th>Intérêts</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${f.children.map(k=>`
+                  <tr>
+                    <td><strong>${k.prenom} ${k.nom}</strong></td>
+                    <td>${k.birth_date ? formatDate(k.birth_date) : '—'}</td>
+                    <td>${k.level || '—'}</td>
+                    <td>${k.interests || '—'}</td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" onclick="openEnrollmentModal(null, ${k.id})">+ Inscription</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+
+      <div style="margin-top:24px;">
+        <h3 style="margin:0 0 12px;">Inscriptions de la famille (${f.enrollments.length})</h3>
+        ${f.enrollments.length === 0 ? `<div class="empty">Aucune inscription pour cette famille.</div>` : `
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>N° Inscription</th><th>Fin de validité</th><th>Statut</th><th>Lien parent</th></tr></thead>
+              <tbody>
+                ${f.enrollments.map(e=>`
+                  <tr>
+                    <td><strong>${e.number}</strong></td>
+                    <td>${formatDate(e.end_date)}</td>
+                    <td>${statusBadge(e.status)}</td>
+                    <td>
+                      ${e.status==='active' ? `<button class="btn btn-outline btn-sm" onclick="copyParentLink(${f.id})">🔗 Copier lien parent</button>` : '—'}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#fd-close').addEventListener('click', ()=>{ modal.remove(); loadPage('families'); });
+  modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.remove(); loadPage('families'); } });
+  modal.querySelector('#fd-add-kid').addEventListener('click', ()=>{
+    modal.remove();
+    openAddChildModal(f.id);
+  });
+}
+
+function openAddChildModal(familyId){
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Ajouter un enfant</h3>
+      <div class="form-row">
+        <div class="form-field"><label>Prénom</label><input id="k-prenom" required></div>
+        <div class="form-field"><label>Nom de famille</label><input id="k-nom" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Date de naissance</label><input type="date" id="k-birth"></div>
+        <div class="form-field"><label>Niveau scolaire / Âge</label><input id="k-level" placeholder="Ex: 5e primaire / 10 ans"></div>
+      </div>
+      <div class="form-field"><label>Centres d'intérêt</label><input id="k-interests" placeholder="Ex: Robotique, Scratch, Minecraft"></div>
+      <div class="form-field"><label>Observations / Notes pédagogiques</label><textarea id="k-notes"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="k-cancel">Annuler</button>
+        <button class="btn btn-primary" id="k-save">Enregistrer l'enfant</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#k-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#k-save').addEventListener('click', async ()=>{
+    const prenom = modal.querySelector('#k-prenom').value.trim();
+    const nom = modal.querySelector('#k-nom').value.trim();
+    if(!prenom || !nom){ toast('Prénom et nom requis.'); return; }
+    try{
+      await api(`/families/${familyId}/children`, {
+        method:'POST',
+        body: JSON.stringify({
+          prenom, nom,
+          birth_date: modal.querySelector('#k-birth').value || null,
+          level: modal.querySelector('#k-level').value.trim(),
+          interests: modal.querySelector('#k-interests').value.trim(),
+          notes: modal.querySelector('#k-notes').value.trim()
+        })
+      });
+      toast('Enfant ajouté avec succès.');
+      modal.remove();
+      openFamilyDetails(familyId);
+    }catch(e){ toast(e.message); }
+  });
+}
+
+/* ================= 5. INSCRIPTIONS (CDC §7.3) ================= */
+async function pageEnrollments(content){
+  let searchQ = '';
+  async function refresh(){
+    const rawList = await api(`/enrollments?q=${encodeURIComponent(searchQ)}`);
+    const list = Array.isArray(rawList) ? rawList : [];
+    document.getElementById('enrollments-list').innerHTML = list.length === 0 ? `<tr><td colspan="8" class="empty">Aucune inscription.</td></tr>` :
+      list.map(e => `
+        <tr>
+          <td><strong>${e.number}</strong></td>
+          <td>${e.child_prenom} ${e.child_nom}</td>
+          <td>${e.parent_name}</td>
+          <td>${e.plan_months} mois</td>
+          <td>${formatDate(e.start_date)} au ${formatDate(e.end_date)}</td>
+          <td>${statusBadge(e.status)}</td>
+          <td>
+            <strong>${e.total_amount} DT</strong>
+            <br><span style="font-size:12px; color:var(--muted);">Payé : ${e.balance.paid} DT (Reste: ${e.balance.remaining} DT)</span>
+          </td>
+          <td>
+            <div class="icon-row">
+              <button class="btn btn-outline btn-sm" onclick="manageEnrollmentStatus(${e.id}, '${e.status}')">Statut</button>
+              ${['admin','compta'].includes(currentUser?.role) ? `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${e.id})">+ Paiement</button>` : ''}
+              ${e.status==='active' ? `<button class="btn btn-outline btn-sm" onclick="copyParentLink(${e.family_id})">🔗 Lien</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Gestion des Inscriptions</h1>
+        <p class="page-sub">Formules (3, 6, 12 mois), dates de validité, modules autorisés et accès parent.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new-en">+ Nouvelle inscription</button>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="en-search" placeholder="Rechercher par numéro, élève ou parent…" style="min-width:300px;">
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>N° Inscription</th><th>Élève</th><th>Parent</th><th>Formule</th><th>Période</th><th>Statut</th><th>Finances</th><th>Actions</th></tr></thead>
+          <tbody id="enrollments-list"><tr><td colspan="8" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-en').addEventListener('click', ()=>openEnrollmentModal());
+  document.getElementById('en-search').addEventListener('input', (e)=>{ searchQ = e.target.value; debounceRefresh(refresh); });
+  await refresh();
+}
+
+async function openEnrollmentModal(enId = null, presetChildId = null){
+  const [rawChildren, rawModules] = await Promise.all([
+    api('/children').catch(()=>[]),
+    api('/modules').catch(()=>[])
+  ]);
+  const children = Array.isArray(rawChildren) ? rawChildren : [];
+  const modules = Array.isArray(rawModules) ? rawModules : [];
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal modal-large">
+      <h3>Nouvelle Inscription</h3>
+      <div class="form-field"><label>Sélectionner l'enfant</label>
+        <select id="en-child">
+          ${children.length === 0 ? '<option value="">(Aucun enfant enregistré - créez d\'abord une famille et un enfant)</option>' :
+            children.map(c=>`<option value="${c.id}" ${presetChildId===c.id?'selected':''}>${c.prenom} ${c.nom} (Parent: ${c.parent_name || 'Famille'})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Formule</label>
+          <select id="en-plan">
+            <option value="3">Formule 3 mois</option>
+            <option value="6">Formule 6 mois</option>
+            <option value="12">Formule 12 mois (Annuelle)</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Date de début</label><input type="date" id="en-start" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Montant convenu (DT)</label><input type="number" id="en-amount" value="300" min="0"></div>
+        <div class="form-field"><label>Limite séances / semaine</label><input type="number" id="en-limit" value="3" min="1" max="7"></div>
+      </div>
+      <div class="form-field">
+        <label>Modules autorisés dans cette formule :</label>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-top:6px;">
+          ${modules.map(m=>`
+            <div class="checkbox-row" style="background:#f4f7fa; padding:8px 12px; border-radius:6px;">
+              <input type="checkbox" id="mod-${m.id}" value="${m.id}" checked>
+              <label for="mod-${m.id}" style="margin:0; font-size:13px;">${m.title} (${m.city_name})</label>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="en-cancel">Annuler</button>
+        <button class="btn btn-primary" id="en-save">Valider l'inscription</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#en-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#en-save').addEventListener('click', async ()=>{
+    const child_id = Number(modal.querySelector('#en-child').value);
+    if(!child_id){ toast("Veuillez d'abord sélectionner un enfant (ou créer une famille avec un enfant)."); return; }
+    const plan_months = Number(modal.querySelector('#en-plan').value);
+    const total_amount = Number(modal.querySelector('#en-amount').value);
+    const weekly_limit = Number(modal.querySelector('#en-limit').value);
+    const selectedMods = Array.from(modal.querySelectorAll('input[id^="mod-"]:checked')).map(el => Number(el.value));
+
+    if(!selectedMods.length){ toast('Veuillez sélectionner au moins un module.'); return; }
+    try{
+      const res = await api('/enrollments', {
+        method:'POST',
+        body: JSON.stringify({
+          child_id, plan_months, total_amount, weekly_limit,
+          modules: selectedMods,
+          start_date: modal.querySelector('#en-start').value
+        })
+      });
+      toast('Inscription créée avec succès.');
+      modal.remove();
+      loadPage('enrollments');
+    }catch(e){ toast(e.message); }
+  });
+}
+
+function manageEnrollmentStatus(id, currentStatus){
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Modifier le statut de l'inscription</h3>
+      <div class="form-field"><label>Nouveau statut</label>
+        <select id="es-status">
+          <option value="en_attente" ${currentStatus==='en_attente'?'selected':''}>En attente</option>
+          <option value="active" ${currentStatus==='active'?'selected':''}>Active (Débloque les réservations)</option>
+          <option value="suspendue" ${currentStatus==='suspendue'?'selected':''}>Suspendue</option>
+          <option value="terminee" ${currentStatus==='terminee'?'selected':''}>Terminée</option>
+          <option value="annulee" ${currentStatus==='annulee'?'selected':''}>Annulée</option>
+        </select>
+      </div>
+      <div id="parent-link-box" style="display:none; background:var(--blue-light); padding:12px; border-radius:8px; margin-bottom:12px;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="es-cancel">Annuler</button>
+        <button class="btn btn-primary" id="es-save">Mettre à jour</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#es-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#es-save').addEventListener('click', async ()=>{
+    const status = modal.querySelector('#es-status').value;
+    try{
+      const res = await api(`/enrollments/${id}`, { method:'PATCH', body: JSON.stringify({ status }) });
+      if(res.parent_link){
+        const fullUrl = window.location.origin + res.parent_link;
+        modal.querySelector('#parent-link-box').style.display = 'block';
+        modal.querySelector('#parent-link-box').innerHTML = `
+          <strong>Lien sécurisé du parent :</strong><br>
+          <input type="text" readonly value="${fullUrl}" style="width:100%; margin:6px 0; padding:6px; font-size:12px;">
+          <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${fullUrl}'); toast('Lien copié !');">Copier le lien</button>
+        `;
+        toast('Inscription activée !');
+      } else {
+        toast('Statut mis à jour.');
+        modal.remove();
+        loadPage('enrollments');
+      }
+    }catch(e){ toast(e.message); }
+  });
+}
+
+async function copyParentLink(familyId){
+  try {
+    const res = await api(`/families/${familyId}/parent-link`);
+    const fullUrl = window.location.origin + res.url;
+    await navigator.clipboard.writeText(fullUrl);
+    toast('Lien parent sécurisé copié dans le presse-papiers !');
+  } catch(e) {
+    toast(e.message);
+  }
+}
+
+/* ================= 6. CAISSE & PAIEMENTS (CDC §8) ================= */
+async function pagePayments(content){
+  let searchQ = '';
+  async function refresh(){
+    const [rawPayments, finance] = await Promise.all([
+      api(`/payments?q=${encodeURIComponent(searchQ)}`),
+      api('/reports/finance').catch(()=>({}))
+    ]);
+    const payments = Array.isArray(rawPayments) ? rawPayments : [];
+
+    document.getElementById('fin-invoiced').textContent = (finance.invoiced || 0).toLocaleString() + ' DT';
+    document.getElementById('fin-collected').textContent = (finance.collected || 0).toLocaleString() + ' DT';
+    document.getElementById('fin-remaining').textContent = Math.max(0, (finance.invoiced || 0) - (finance.collected || 0)).toLocaleString() + ' DT';
+
+    document.getElementById('payments-list').innerHTML = payments.length === 0 ? `<tr><td colspan="8" class="empty">Aucun versement enregistré.</td></tr>` :
+      payments.map(p => `
+        <tr>
+          <td><strong>${p.ref || 'N/A'}</strong></td>
+          <td>${p.enrollment_number}</td>
+          <td>${p.child_prenom} ${p.child_nom}</td>
+          <td>${p.parent_name}</td>
+          <td>${formatDate(p.paid_at)}</td>
+          <td><strong>${p.amount} DT</strong></td>
+          <td>${p.method}</td>
+          <td>${statusBadge(p.status)}</td>
+          <td>
+            <div class="icon-row">
+              <button class="btn btn-outline btn-sm" onclick="printReceipt(${p.id})">🖨️ Reçu</button>
+              ${p.status==='enregistre' ? `<button class="btn btn-danger btn-sm" onclick="cancelPayment(${p.id})">Annuler</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Caisse, Règlements & Reçus</h1>
+        <p class="page-sub">Suivi des versements, calcul des soldes dus et édition des reçus comptables.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new-payment">+ Enregistrer un versement</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="num" id="fin-invoiced">0 DT</div>
+        <div class="lbl">Total facturé (Inscriptions)</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="fin-collected" style="color:var(--success);">0 DT</div>
+        <div class="lbl">Total encaissé</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="fin-remaining" style="color:var(--orange-dark);">0 DT</div>
+        <div class="lbl">Solde restant dû</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="pay-search" placeholder="Rechercher par référence reçu, inscription ou parent…" style="min-width:320px;">
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Réf. Reçu</th><th>N° Inscription</th><th>Élève</th><th>Parent</th><th>Date</th><th>Montant</th><th>Mode</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="payments-list"><tr><td colspan="9" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-payment').addEventListener('click', ()=>openPaymentModal());
+  document.getElementById('pay-search').addEventListener('input', (e)=>{ searchQ = e.target.value; debounceRefresh(refresh); });
+  await refresh();
+}
+
+async function openPaymentModal(presetEnrollmentId = null){
+  const rawEnrollments = await api('/enrollments').catch(()=>[]);
+  const enrollments = Array.isArray(rawEnrollments) ? rawEnrollments : [];
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Enregistrer un versement</h3>
+      <div class="form-field"><label>Inscription concernée</label>
+        <select id="pay-en">
+          ${enrollments.length === 0 ? '<option value="">(Aucune inscription active trouvée)</option>' :
+            enrollments.map(e=>`
+            <option value="${e.id}" ${presetEnrollmentId===e.id?'selected':''}>
+              ${e.number} — ${e.child_prenom} ${e.child_nom} (Reste: ${e.balance ? e.balance.remaining : 0} DT)
+            </option>
+          `).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Montant (DT)</label><input type="number" id="pay-amount" min="1" step="0.5" required></div>
+        <div class="form-field"><label>Date de paiement</label><input type="date" id="pay-date" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Mode de règlement</label>
+          <select id="pay-method">
+            <option value="especes">Espèces</option>
+            <option value="virement">Virement bancaire</option>
+            <option value="cheque">Chèque</option>
+            <option value="carte">Carte bancaire</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Réf. externe / Transaction</label><input id="pay-ref" placeholder="N° chèque ou virement"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="pay-cancel">Annuler</button>
+        <button class="btn btn-primary" id="pay-save">Encaisser & Émettre le reçu</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#pay-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#pay-save').addEventListener('click', async ()=>{
+    const enId = Number(modal.querySelector('#pay-en').value);
+    const amount = Number(modal.querySelector('#pay-amount').value);
+    if(!(amount > 0)){ toast('Montant strictement positif requis.'); return; }
+    try{
+      const res = await api(`/enrollments/${enId}/payments`, {
+        method:'POST',
+        body: JSON.stringify({
+          amount,
+          paid_at: modal.querySelector('#pay-date').value,
+          method: modal.querySelector('#pay-method').value,
+          external_ref: modal.querySelector('#pay-ref').value.trim()
+        })
+      });
+      toast('Paiement enregistré avec succès.');
+      modal.remove();
+      printReceipt(res.id);
+    }catch(e){ toast(e.message); }
+  });
+}
+
+async function printReceipt(paymentId){
+  const data = await api(`/payments/${paymentId}/receipt`);
+  const p = data.payment;
+  const bal = data.balance;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal modal-large no-print">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0;">Aperçu du Reçu Officiel</h3>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Imprimer le reçu</button>
+          <button class="btn btn-outline btn-sm" id="pr-close">Fermer</button>
+        </div>
+      </div>
+      <div id="printable-receipt" class="receipt-box">
+        <div class="receipt-header">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <img src="/assets/logo-full.png" style="height:48px;" alt="BrainUp">
+            <div style="text-align:right;">
+              <h2 class="receipt-title">REÇU DE RÈGLEMENT</h2>
+              <div class="receipt-ref">N° ${p.ref}</div>
+              <div style="font-size:12px; color:var(--muted);">Date : ${formatDate(p.paid_at)}</div>
+            </div>
+          </div>
+          <div style="font-size:12px; color:var(--muted); margin-top:10px;">
+            <strong>BrainUp Innovation Academy</strong> — Centre Éducatif & Technologies — Tunisie | Tél : 57 149 933
+          </div>
+        </div>
+
+        <div class="receipt-grid">
+          <div>
+            <div style="font-weight:700; color:var(--blue-dark); margin-bottom:4px;">REÇU DE (PARENT / RESPONSABLE) :</div>
+            <div><strong>${p.parent_name}</strong></div>
+            <div>Tél : ${p.phone}</div>
+            <div>${p.address || ''}</div>
+          </div>
+          <div>
+            <div style="font-weight:700; color:var(--blue-dark); margin-bottom:4px;">POUR L'ÉLÈVE :</div>
+            <div><strong>${p.child_prenom} ${p.child_nom}</strong></div>
+            <div>Dossier d'inscription N° : <strong>${p.enrollment_number}</strong></div>
+            <div>Formule : ${p.plan_months} mois</div>
+          </div>
+        </div>
+
+        <div style="background:#f4f7fa; border-radius:8px; padding:16px; margin:18px 0;">
+          <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:800; margin-bottom:8px;">
+            <span>Montant réglé :</span>
+            <span style="color:var(--success); font-size:18px;">${p.amount}.000 DT</span>
+          </div>
+          <div style="font-size:13px; color:var(--muted);">
+            Mode de versement : <strong>${p.method.toUpperCase()}</strong> ${p.external_ref ? '— Réf : ' + p.external_ref : ''}
+          </div>
+        </div>
+
+        <div style="border-top:1px dashed var(--border); padding-top:12px; font-size:13px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Total convenu inscription :</span>
+            <span>${bal.total}.000 DT</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Cumul total versé à ce jour :</span>
+            <span style="font-weight:700;">${bal.paid}.000 DT</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:800; color:${bal.remaining>0?'var(--orange-dark)':'var(--success)'};">
+            <span>Reste à payer :</span>
+            <span>${bal.remaining}.000 DT</span>
+          </div>
+        </div>
+
+        <div class="receipt-footer">
+          <div>Encaissé par : ${p.created_by_name || 'Administration'}</div>
+          <div>Cachet & Signature BrainUp</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#pr-close').addEventListener('click', ()=>{ modal.remove(); loadPage('payments'); });
+  modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.remove(); loadPage('payments'); } });
+}
+
+function cancelPayment(id){
+  const reason = prompt("Veuillez indiquer le motif obligatoire de l'annulation de ce versement :");
+  if(!reason) return;
+  api(`/payments/${id}/cancel`, { method:'POST', body: JSON.stringify({ reason }) })
+    .then(()=>{ toast('Paiement annulé et tracé.'); loadPage('payments'); })
+    .catch(e=>toast(e.message));
+}
+
+/* ================= 7. SÉANCES & ÉMARGEMENT COACH (CDC §10) ================= */
+async function pageSessions(content){
+  let dateFilter = new Date().toISOString().slice(0, 10);
+
+  async function refresh(){
+    const rawSessions = await api(`/sessions?date=${dateFilter}`);
+    const sessions = Array.isArray(rawSessions) ? rawSessions : [];
+    document.getElementById('sessions-list').innerHTML = sessions.length === 0 ? `<div class="empty">Aucune séance planifiée pour cette date.</div>` :
+      sessions.map(s => `
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div style="font-size:17px; font-weight:800; color:var(--blue-dark);">${s.module_title}</div>
+              <div style="font-size:13.5px; color:var(--muted); margin-top:2px;">
+                🕒 <strong>${s.time.slice(0,5)}</strong> (${s.duration_minutes || 90} min) — Capacité : ${s.capacity} places
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="openSessionRoster(${s.id}, '${s.module_title}', '${s.time.slice(0,5)}')">
+              📋 Feuille de présence & Appel
+            </button>
+          </div>
+        </div>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Séances & Feuille d'Appel Coach</h1>
+        <p class="page-sub">Consultation du planning et pointage en temps réel des présences / absences.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label style="font-size:13.5px; font-weight:600;">Date :</label>
+        <input type="date" id="sess-date" value="${dateFilter}" style="padding:7px 10px; border:1px solid var(--border); border-radius:8px;">
+      </div>
+    </div>
+    <div id="sessions-list"><div class="empty">Chargement…</div></div>
+  `;
+
+  document.getElementById('sess-date').addEventListener('change', (e)=>{ dateFilter = e.target.value; refresh(); });
+  await refresh();
+}
+
+async function openSessionRoster(slotId, moduleTitle, timeStr){
+  const rawRoster = await api(`/sessions/${slotId}/roster`);
+  const roster = Array.isArray(rawRoster) ? rawRoster : [];
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal modal-large">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+        <div>
+          <h2 style="margin:0; font-size:18px; color:var(--blue-dark);">${moduleTitle} — ${timeStr}</h2>
+          <div style="font-size:13px; color:var(--muted);">Émargement de la séance (${roster.length} inscrit(s))</div>
+        </div>
+        <button class="btn btn-outline btn-sm" id="ro-close">Fermer</button>
+      </div>
+
+      ${roster.length === 0 ? `<div class="empty">Aucun élève inscrit sur ce créneau.</div>` : `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Élève</th><th>Statut actuel</th><th>Pointer la présence</th></tr></thead>
+            <tbody>
+              ${roster.map(r=>`
+                <tr>
+                  <td><strong>${r.prenom} ${r.nom}</strong></td>
+                  <td id="st-badge-${r.id}">${statusBadge(r.status)}</td>
+                  <td>
+                    <div class="icon-row">
+                      <button class="btn btn-success btn-sm" onclick="setAttendance(${r.id}, 'attended')">✔ Présent</button>
+                      <button class="btn btn-orange btn-sm" onclick="setAttendance(${r.id}, 'absent')">✖ Absent</button>
+                      <button class="btn btn-outline btn-sm" onclick="setAttendance(${r.id}, 'absent_excuse')">Excusé</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#ro-close').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+}
+
+async function setAttendance(bookingId, status){
+  try{
+    await api(`/attendance/${bookingId}`, { method:'PATCH', body: JSON.stringify({ status }) });
+    const cell = document.getElementById(`st-badge-${bookingId}`);
+    if(cell) cell.innerHTML = statusBadge(status);
+    toast('Pointage enregistré.');
+  }catch(e){ toast(e.message); }
+}
+
+/* ================= 8. ÉQUIPE & UTILISATEURS (CDC §3) ================= */
+async function pageUsers(content){
+  async function refresh(){
+    const rawUsers = await api('/users');
+    const users = Array.isArray(rawUsers) ? rawUsers : [];
+    document.getElementById('users-list').innerHTML = users.length === 0 ? `<tr><td colspan="5" class="empty">Aucun utilisateur.</td></tr>` :
+      users.map(u => `
+        <tr>
+          <td><strong>${u.username}</strong></td>
+          <td><span class="role-pill" style="background:#0f2540; color:#fff;">${u.role.toUpperCase()}</span></td>
+          <td>${u.must_change_password ? '⚠️ Doit changer mot de passe' : 'Actif'}</td>
+          <td>${formatDate(u.created_at)}</td>
+          <td>
+            ${u.id !== currentUser?.id ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Supprimer</button>` : '<em>(Compte connecté)</em>'}
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Équipe & Droits d'Accès</h1>
+        <p class="page-sub">Gestion des comptes utilisateurs et profils (Admin, Accueil, Compta, Coach).</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new-user">+ Nouvel utilisateur</button>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Identifiant</th><th>Rôle & Permissions</th><th>Sécurité</th><th>Créé le</th><th>Actions</th></tr></thead>
+          <tbody id="users-list"><tr><td colspan="5" class="empty">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-user').addEventListener('click', ()=>openNewUserModal());
+  await refresh();
+}
+
+function openNewUserModal(){
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Créer un utilisateur</h3>
+      <div class="form-field"><label>Identifiant (username)</label><input id="u-name" required></div>
+      <div class="form-field"><label>Mot de passe initial</label><input type="password" id="u-pass" required></div>
+      <div class="form-field"><label>Rôle et permissions</label>
+        <select id="u-role">
+          <option value="accueil">Accueil / Commercial (CRM, RDV, Inscriptions)</option>
+          <option value="compta">Comptabilité / Caisse (Paiements, Reçus, Rapports)</option>
+          <option value="coach">Coach / Formateur (Planning de ses séances & Appel)</option>
+          <option value="admin">Administrateur (Accès complet & configuration)</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="u-cancel">Annuler</button>
+        <button class="btn btn-primary" id="u-save">Créer le compte</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#u-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#u-save').addEventListener('click', async ()=>{
+    const username = modal.querySelector('#u-name').value.trim();
+    const password = modal.querySelector('#u-pass').value;
+    const role = modal.querySelector('#u-role').value;
+    if(!username || !password){ toast('Identifiant et mot de passe requis.'); return; }
+    try{
+      await api('/users', { method:'POST', body: JSON.stringify({ username, password, role }) });
+      toast('Utilisateur créé avec succès.');
+      modal.remove();
+      loadPage('users');
+    }catch(e){ toast(e.message); }
+  });
+}
+
+function deleteUser(id){
+  if(!confirm("Supprimer définitivement ce compte utilisateur ?")) return;
+  api(`/users/${id}`, { method:'DELETE' })
+    .then(()=>{ toast('Compte supprimé.'); loadPage('users'); })
+    .catch(e=>toast(e.message));
+}
+
+/* ================= 9. RÉSERVATIONS PUBLIQUES V1 ================= */
+async function pageBookings(content){
+  let filters = { status:'', q:'' };
+  async function refresh(){
+    const params = new URLSearchParams();
+    if(filters.status) params.set('status', filters.status);
+    if(filters.q) params.set('q', filters.q);
+    const rawRows = await api('/bookings?' + params.toString());
+    const rows = Array.isArray(rawRows) ? rawRows : [];
+    document.getElementById('bookings-table').innerHTML = rows.length===0 ? `<div class="empty">Aucune réservation trouvée.</div>` : `
+      <table>
+        <thead><tr><th>Élève</th><th>Parent</th><th>Contact</th><th>Module</th><th>Date</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          ${rows.map(b=>`
+            <tr>
+              <td><strong>${b.prenom} ${b.nom}</strong></td>
+              <td>${b.parent_name}</td>
+              <td>${b.email || ''}<br><span style="color:var(--muted);font-size:12px;">${b.phone||''}</span></td>
+              <td>${b.module_title}</td>
+              <td>${formatDate(b.date)} ${b.time.slice(0,5)}</td>
+              <td>${statusBadge(b.status)}</td>
+              <td>
+                <div class="icon-row">
+                  <select class="status-select btn-sm" data-id="${b.id}" style="border:1px solid var(--border); border-radius:6px; padding:4px;">
+                    <option value="confirmed" ${b.status==='confirmed'?'selected':''}>Confirmée</option>
+                    <option value="attended" ${b.status==='attended'?'selected':''}>Présent</option>
+                    <option value="absent" ${b.status==='absent'?'selected':''}>Absent</option>
+                    <option value="cancelled" ${b.status==='cancelled'?'selected':''}>Annulée</option>
+                  </select>
+                  <button class="btn btn-danger btn-sm delete-booking" data-id="${b.id}">Suppr.</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.querySelectorAll('.status-select').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        await api(`/bookings/${sel.dataset.id}`, { method:'PATCH', body: JSON.stringify({status: sel.value}) });
+        toast('Statut mis à jour.');
+        refresh();
+      });
+    });
+    document.querySelectorAll('.delete-booking').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Supprimer cette réservation ?')) return;
+        await api(`/bookings/${btn.dataset.id}`, { method:'DELETE' });
+        toast('Réservation supprimée.');
+        refresh();
+      });
+    });
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Réservations Directes</h1>
+        <p class="page-sub">Réservations effectuées via le formulaire public du site web.</p>
+      </div>
+      <button class="btn btn-outline" id="export-btn">Exporter en CSV</button>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="search-q" placeholder="Rechercher (nom, e-mail, parent)…" style="min-width:240px;">
+      <select id="filter-status">
+        <option value="">Tous les statuts</option>
+        <option value="confirmed">Confirmée</option>
+        <option value="attended">Présent</option>
+        <option value="absent">Absent</option>
+        <option value="cancelled">Annulée</option>
+      </select>
+    </div>
+    <div class="card"><div class="table-wrap" id="bookings-table"></div></div>
+  `;
+
+  document.getElementById('search-q').addEventListener('input', (e)=>{ filters.q = e.target.value; debounceRefresh(refresh); });
+  document.getElementById('filter-status').addEventListener('change', (e)=>{ filters.status = e.target.value; refresh(); });
+  document.getElementById('export-btn').addEventListener('click', async ()=>{
+    const blob = await api('/bookings-export.csv');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'reservations.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+  await refresh();
+}
+
+/* ================= 10. CRÉNEAUX & PLANNING ================= */
+async function pageSlots(content){
+  const [rawModules, rawCoaches] = await Promise.all([
+    api('/modules').catch(()=>[]),
+    api('/coaches').catch(()=>[])
+  ]);
+  const modules = Array.isArray(rawModules) ? rawModules : [];
+  const coaches = Array.isArray(rawCoaches) ? rawCoaches : [];
+
+  async function refresh(){
+    const rawSlots = await api('/slots');
+    const slots = Array.isArray(rawSlots) ? rawSlots : [];
+    document.getElementById('slots-body').innerHTML = slots.length===0 ? `<div class="empty">Aucun créneau.</div>` : `
+      <table>
+        <thead><tr><th>Module</th><th>Ville</th><th>Date</th><th>Heure</th><th>Places</th><th>Réservées</th><th>Coach</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          ${slots.map(s=>`
+            <tr>
+              <td><strong>${s.module_title}</strong></td>
+              <td>${s.city_name}</td>
+              <td>${formatDate(s.date)}</td>
+              <td>${s.time.slice(0,5)}</td>
+              <td>${s.capacity}</td>
+              <td>${s.booked_count}</td>
+              <td>
+                <select class="coach-assign btn-sm" data-id="${s.id}" style="border:1px solid var(--border); border-radius:6px; padding:4px;">
+                  <option value="">(Non assigné)</option>
+                  ${coaches.map(c=>`<option value="${c.id}" ${s.coach_id===c.id?'selected':''}>${c.username}</option>`).join('')}
+                </select>
+              </td>
+              <td><span class="badge badge-${s.active?'active':'inactive'}">${s.active?'Actif':'Inactif'}</span></td>
+              <td><button class="btn btn-danger btn-sm delete-slot" data-id="${s.id}">Suppr.</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.querySelectorAll('.coach-assign').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        await api(`/slots/${sel.dataset.id}/coach`, { method:'PATCH', body: JSON.stringify({ coach_id: sel.value ? Number(sel.value) : null }) });
+        toast('Coach assigné à la séance.');
+      });
+    });
+    document.querySelectorAll('.delete-slot').forEach(btn=>btn.addEventListener('click', async ()=>{
+      if(!confirm('Supprimer ce créneau ?')) return;
+      await api(`/slots/${btn.dataset.id}`, { method:'DELETE' });
+      toast('Créneau supprimé.');
+      refresh();
+    }));
+  }
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Créneaux & Planning des Ateliers</h1>
+        <p class="page-sub">Planifiez les séances d'ateliers et assignez les coachs responsables.</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-outline" id="add-single">+ Créneau ponctuel</button>
+        <button class="btn btn-primary" id="add-bulk">+ Générer en masse</button>
+      </div>
+    </div>
+    <div class="card"><div class="table-wrap" id="slots-body"></div></div>
+  `;
+
+  document.getElementById('add-single').addEventListener('click', ()=>{
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Ajouter un créneau</h3>
+        <div class="form-field"><label>Module</label>
+          <select id="s-module">${modules.map(m=>`<option value="${m.id}">${m.title} — ${m.city_name}</option>`).join('')}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Date</label><input type="date" id="s-date"></div>
+          <div class="form-field"><label>Heure</label><input type="time" id="s-time"></div>
+        </div>
+        <div class="form-field"><label>Capacité</label><input type="number" id="s-capacity" value="20"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="s-cancel">Annuler</button>
+          <button class="btn btn-primary" id="s-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#s-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#s-save').addEventListener('click', async ()=>{
+      const payload = {
+        module_id: Number(modal.querySelector('#s-module').value),
+        date: modal.querySelector('#s-date').value,
+        time: modal.querySelector('#s-time').value,
+        capacity: Number(modal.querySelector('#s-capacity').value) || 20,
+      };
+      if(!payload.date || !payload.time){ toast('Date et heure requises.'); return; }
+      try{
+        await api('/slots', { method:'POST', body: JSON.stringify(payload) });
+        toast('Créneau ajouté.');
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  });
+
+  document.getElementById('add-bulk').addEventListener('click', ()=>{
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Générer des créneaux récurrents</h3>
+        <div class="form-field"><label>Module</label>
+          <select id="b-module">${modules.map(m=>`<option value="${m.id}">${m.title} — ${m.city_name}</option>`).join('')}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Jour de la semaine</label>
+            <select id="b-weekday">
+              <option value="6">Samedi</option><option value="0">Dimanche</option>
+              <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
+              <option value="4">Jeudi</option><option value="5">Vendredi</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Heure</label><input type="time" id="b-time" value="10:00"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label>Du</label><input type="date" id="b-start"></div>
+          <div class="form-field"><label>Au</label><input type="date" id="b-end"></div>
+        </div>
+        <div class="form-field"><label>Capacité par créneau</label><input type="number" id="b-capacity" value="20"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="b-cancel">Annuler</button>
+          <button class="btn btn-primary" id="b-save">Générer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#b-cancel').addEventListener('click', ()=>modal.remove());
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+    modal.querySelector('#b-save').addEventListener('click', async ()=>{
+      const payload = {
+        module_id: Number(modal.querySelector('#b-module').value),
+        weekday: Number(modal.querySelector('#b-weekday').value),
+        time: modal.querySelector('#b-time').value,
+        start_date: modal.querySelector('#b-start').value,
+        end_date: modal.querySelector('#b-end').value,
+        capacity: Number(modal.querySelector('#b-capacity').value) || 20,
+      };
+      if(!payload.start_date || !payload.end_date){ toast('Période requise.'); return; }
+      try{
+        const res = await api('/slots/bulk', { method:'POST', body: JSON.stringify(payload) });
+        toast(`${res.created} créneau(x) créé(s).`);
+        modal.remove();
+        refresh();
+      }catch(e){ toast(e.message); }
+    });
+  });
+
+  await refresh();
+}
+
+/* ================= 11. MODULES & VILLES ================= */
+async function pageModules(content){
+  const [rawCities, rawModules] = await Promise.all([
+    api('/cities').catch(()=>[]),
+    api('/modules').catch(()=>[])
+  ]);
+  const cities = Array.isArray(rawCities) ? rawCities : [];
+  const modules = Array.isArray(rawModules) ? rawModules : [];
+
+  content.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Modules & Villes</h1>
+        <p class="page-sub">Catalogue des ateliers technologiques et gestion des centres BrainUp.</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-primary" id="add-mod">+ Ajouter un module</button>
+        <button class="btn btn-outline" id="add-city">+ Ajouter une ville</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Ateliers & Formations proposées (${modules.length})</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Titre</th><th>Espace / Ville</th><th>Tranche d'âge</th><th>Durée</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${modules.length === 0 ? `<tr><td colspan="6" class="empty">Aucun module enregistré.</td></tr>` :
+              modules.map(m=>`
+              <tr>
+                <td><strong>${m.title}</strong><br><span style="color:var(--muted); font-size:12px;">${m.description||''}</span></td>
+                <td>${m.city_name}</td>
+                <td>${m.age_group} ans</td>
+                <td>${m.duration_minutes} min</td>
+                <td><span class="badge badge-${m.active?'active':'inactive'}">${m.active?'Actif':'Inactif'}</span></td>
+                <td>
+                  <div class="icon-row">
+                    <button class="btn btn-outline btn-sm" onclick="openModuleModal(${m.id})">Modifier</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteModule(${m.id})">Suppr.</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Villes & Espaces BrainUp (${cities.length})</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nom</th><th>Slug</th><th>Adresse</th><th>Maps</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${cities.length === 0 ? `<tr><td colspan="6" class="empty">Aucune ville enregistrée.</td></tr>` :
+              cities.map(c=>`
+              <tr>
+                <td><strong>${c.name}</strong> ${c.is_new ? '<span class="badge badge-active">Nouveau</span>' : ''}</td>
+                <td><code>${c.slug}</code></td>
+                <td>${c.address || '—'}</td>
+                <td>${c.maps_url ? `<a href="${c.maps_url}" target="_blank" rel="noopener">Voir carte ↗</a>` : '—'}</td>
+                <td><span class="badge badge-${c.active?'active':'inactive'}">${c.active?'Actif':'Inactif'}</span></td>
+                <td>
+                  <div class="icon-row">
+                    <button class="btn btn-outline btn-sm" onclick="openCityModal(${c.id})">Modifier</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteCity(${c.id})">Suppr.</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('add-mod').addEventListener('click', ()=>openModuleModal());
+  document.getElementById('add-city').addEventListener('click', ()=>openCityModal());
+}
+
+async function openModuleModal(id = null){
+  const [rawCities, rawModules] = await Promise.all([
+    api('/cities').catch(()=>[]),
+    api('/modules').catch(()=>[])
+  ]);
+  const cities = Array.isArray(rawCities) ? rawCities : [];
+  const modules = Array.isArray(rawModules) ? rawModules : [];
+  const m = id ? modules.find(x => x.id === id) : null;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>${m ? 'Modifier le module' : 'Ajouter un module'}</h3>
+      <div class="form-field"><label>Ville / Centre</label>
+        <select id="m-city">${cities.map(c=>`<option value="${c.id}" ${m?.city_id===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+      </div>
+      <div class="form-field"><label>Titre de l'atelier</label><input id="m-title" value="${m?.title || ''}" required></div>
+      <div class="form-field"><label>Description</label><textarea id="m-desc">${m?.description || ''}</textarea></div>
+      <div class="form-row">
+        <div class="form-field"><label>Tranche d'âge</label>
+          <select id="m-age">
+            <option value="7-12" ${m?.age_group==='7-12'?'selected':''}>7-12 ans</option>
+            <option value="13-17" ${m?.age_group==='13-17'?'selected':''}>13-17 ans</option>
+            <option value="5-7" ${m?.age_group==='5-7'?'selected':''}>5-7 ans</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Durée (min)</label><input type="number" id="m-dur" value="${m?.duration_minutes || 90}"></div>
+      </div>
+      ${m ? `
+        <div class="form-field"><label>Statut</label>
+          <select id="m-active">
+            <option value="1" ${m.active ? 'selected':''}>Actif</option>
+            <option value="0" ${!m.active ? 'selected':''}>Inactif</option>
+          </select>
+        </div>
+      ` : ''}
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="m-cancel">Annuler</button>
+        <button class="btn btn-primary" id="m-save">Enregistrer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#m-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#m-save').addEventListener('click', async ()=>{
+    const payload = {
+      city_id: Number(modal.querySelector('#m-city').value),
+      title: modal.querySelector('#m-title').value.trim(),
+      description: modal.querySelector('#m-desc').value.trim(),
+      age_group: modal.querySelector('#m-age').value,
+      duration_minutes: Number(modal.querySelector('#m-dur').value) || 90,
+      active: m ? Number(modal.querySelector('#m-active').value) : 1
+    };
+    if(!payload.title){ toast('Titre requis.'); return; }
+    try{
+      if(m){
+        await api(`/modules/${m.id}`, { method:'PUT', body: JSON.stringify(payload) });
+      } else {
+        await api('/modules', { method:'POST', body: JSON.stringify(payload) });
+      }
+      toast('Module enregistré.');
+      modal.remove();
+      loadPage('modules');
+    }catch(e){ toast(e.message); }
+  });
+}
+
+function deleteModule(id){
+  if(!confirm("Supprimer ce module ? Cette action est irréversible.")) return;
+  api(`/modules/${id}`, { method:'DELETE' })
+    .then(()=>{ toast('Module supprimé.'); loadPage('modules'); })
+    .catch(e=>toast(e.message));
+}
+
+async function openCityModal(id = null){
+  const rawCities = await api('/cities').catch(()=>[]);
+  const cities = Array.isArray(rawCities) ? rawCities : [];
+  const c = id ? cities.find(x => x.id === id) : null;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>${c ? 'Modifier la ville' : 'Ajouter une ville'}</h3>
+      <div class="form-field"><label>Nom de la ville</label><input id="c-name" value="${c?.name || ''}" placeholder="Ex: Sfax" required></div>
+      <div class="form-field"><label>Identifiant unique (slug)</label><input id="c-slug" value="${c?.slug || ''}" placeholder="Ex: sfax" required></div>
+      <div class="form-field"><label>Adresse du centre</label><input id="c-address" value="${c?.address || ''}" placeholder="Rue, quartier, ville"></div>
+      <div class="form-field"><label>Lien Google Maps</label><input id="c-maps" value="${c?.maps_url || ''}" placeholder="https://maps.google.com/..."></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="c-cancel">Annuler</button>
+        <button class="btn btn-primary" id="c-save">Enregistrer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#c-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#c-save').addEventListener('click', async ()=>{
+    const payload = {
+      name: modal.querySelector('#c-name').value.trim(),
+      slug: modal.querySelector('#c-slug').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-'),
+      address: modal.querySelector('#c-address').value.trim(),
+      maps_url: modal.querySelector('#c-maps').value.trim(),
+    };
+    if(!payload.name || !payload.slug){ toast('Nom et identifiant requis.'); return; }
+    try{
+      if(c){
+        await api(`/cities/${c.id}`, { method:'PUT', body: JSON.stringify(payload) });
+      } else {
+        await api('/cities', { method:'POST', body: JSON.stringify(payload) });
+      }
+      toast('Ville enregistrée.');
+      modal.remove();
+      loadPage('modules');
+    }catch(e){ toast(e.message); }
+  });
+}
+
+function deleteCity(id){
+  if(!confirm("Supprimer cette ville ? Les modules liés doivent être supprimés ou déplacés au préalable.")) return;
+  api(`/cities/${id}`, { method:'DELETE' })
+    .then(()=>{ toast('Ville supprimée.'); loadPage('modules'); })
+    .catch(e=>toast(e.message));
+}
+
+/* ================= 12. RÉGLAGES, SÉCURITÉ & AUDIT ================= */
+async function pageSettings(content){
+  const settings = await api('/settings');
+  content.innerHTML = `
+    <h1 class="page-title">Réglages & Sécurité du Système</h1>
+    <p class="page-sub">Paramètres métier du centre, règles de réservation et mot de passe.</p>
+
+    <div class="card">
+      <h3>Règles Métier (CDC §9.3)</h3>
+      <div class="form-row">
+        <div class="form-field"><label>Limite max. de séances / semaine par enfant</label><input type="number" id="set-weekly" value="${settings.weekly_limit || 3}"></div>
+        <div class="form-field"><label>Délai limite d'annulation sans pénalité (heures)</label><input type="number" id="set-cancel" value="${settings.cancel_deadline_hours || 5}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Délai minimum avant séance pour réserver (heures)</label><input type="number" id="set-min" value="${settings.min_booking_hours || 2}"></div>
+        <div class="form-field"><label>Téléphone officiel du centre</label><input id="set-phone" value="${settings.contact_phone || '57 149 933'}"></div>
+      </div>
+      <button class="btn btn-primary" id="save-settings">Enregistrer les règles</button>
+    </div>
+
+    <div class="card">
+      <h3>Sécurité du compte connecté</h3>
+      <div class="form-row">
+        <div class="form-field"><label>Mot de passe actuel</label><input type="password" id="cur-pass"></div>
+        <div class="form-field"><label>Nouveau mot de passe (8+ car., lettre + chiffre)</label><input type="password" id="new-pass"></div>
+      </div>
+      <button class="btn btn-orange" id="change-pass">Mettre à jour mon mot de passe</button>
+    </div>
+
+    <div class="card">
+      <h3>Journal de connexion sécurisé</h3>
+      <div class="table-wrap" id="login-log-body">Chargement…</div>
+    </div>
+  `;
+
+  api('/login-log').then(rows=>{
+    document.getElementById('login-log-body').innerHTML = rows.length===0 ? `<div class="empty">Aucune tentative.</div>` : `
+      <table>
+        <thead><tr><th>Date</th><th>Identifiant</th><th>Adresse IP</th><th>Statut</th></tr></thead>
+        <tbody>
+          ${rows.slice(0, 15).map(r=>`
+            <tr>
+              <td>${new Date(r.created_at+'Z').toLocaleString('fr-FR')}</td>
+              <td>${r.username}</td>
+              <td>${r.ip||'—'}</td>
+              <td>${r.success ? '<span class="badge badge-active">Réussie</span>' : `<span class="badge badge-cancelled">Échec (${r.reason||''})</span>`}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  });
+
+  document.getElementById('save-settings').addEventListener('click', async ()=>{
+    try{
+      await api('/settings', { method:'PUT', body: JSON.stringify({
+        weekly_limit: document.getElementById('set-weekly').value,
+        cancel_deadline_hours: document.getElementById('set-cancel').value,
+        min_booking_hours: document.getElementById('set-min').value,
+        contact_phone: document.getElementById('set-phone').value,
+      })});
+      toast('Règles métier enregistrées.');
+    }catch(e){ toast(e.message); }
+  });
+
+  document.getElementById('change-pass').addEventListener('click', async ()=>{
+    const currentPassword = document.getElementById('cur-pass').value;
+    const newPassword = document.getElementById('new-pass').value;
+    try{
+      await api('/change-password', { method:'POST', body: JSON.stringify({currentPassword, newPassword}) });
+      toast('Mot de passe mis à jour.');
+      document.getElementById('cur-pass').value = '';
+      document.getElementById('new-pass').value = '';
+    }catch(e){ toast(e.message); }
+  });
+}
+
+let debounceTimer = null;
+function debounceRefresh(fn){ clearTimeout(debounceTimer); debounceTimer = setTimeout(fn, 300); }
+
+boot();
+</script>
+</body>
+</html>

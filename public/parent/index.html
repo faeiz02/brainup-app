@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portail Famille — BrainUp Innovation Academy</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<style>
+  :root {
+    --blue: #2196f3;
+    --blue-dark: #0d5fb0;
+    --blue-light: #e8f3fd;
+    --orange: #f7941e;
+    --orange-dark: #e07d05;
+    --bg: #f4f7fa;
+    --card: #ffffff;
+    --text: #1a2230;
+    --muted: #5c6b7a;
+    --border: #e2ecf1;
+    --danger: #e0453a;
+    --success: #2fa84f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: #0f2540;
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand img { height: 38px; }
+  .brand-title { font-size: 18px; font-weight: 800; }
+  .family-pill {
+    background: rgba(255,255,255,0.12);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  main {
+    max-width: 1000px;
+    margin: 28px auto;
+    padding: 0 16px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+  }
+  h2, h3 { color: var(--blue-dark); margin-top: 0; }
+  .child-tabs {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    padding-bottom: 4px;
+  }
+  .child-tab {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--muted);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .child-tab:hover { border-color: var(--blue); color: var(--blue-dark); }
+  .child-tab.active { background: var(--blue-dark); color: #fff; border-color: var(--blue-dark); }
+
+  .enrollment-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .status-active { background: #e3f6e8; color: var(--success); }
+  .status-en_attente { background: #fdf1de; color: #8a5a00; }
+  .status-suspendue { background: #fdecea; color: var(--danger); }
+
+  .quota-box {
+    background: var(--blue-light);
+    border-left: 4px solid var(--blue);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .slot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .slot-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .slot-title { font-weight: 800; font-size: 15px; color: var(--blue-dark); }
+  .slot-datetime { font-size: 14px; color: var(--text); font-weight: 600; }
+  .slot-places { font-size: 12.5px; color: var(--muted); }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: filter 0.15s;
+    text-align: center;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn-primary { background: var(--blue-dark); color: #fff; }
+  .btn-orange { background: var(--orange); color: #fff; }
+  .btn-danger-outline { background: #fff; border: 1px solid #f3c9c5; color: var(--danger); }
+  .btn-sm { padding: 6px 12px; font-size: 12.5px; }
+
+  .booking-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .booking-item:last-child { border-bottom: none; }
+  .badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .badge-confirmed { background: #e3f6e8; color: var(--success); }
+  .badge-attended { background: #e8f3fd; color: var(--blue-dark); }
+  .badge-absent { background: #fdf1de; color: #8a5a00; }
+  .badge-cancelled { background: #fdecea; color: var(--danger); }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 32px 16px; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #0f2540;
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    z-index: 100;
+    font-size: 14.5px;
+  }
+  .token-error {
+    text-align: center;
+    max-width: 480px;
+    margin: 80px auto;
+    padding: 36px 24px;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="empty-state">Chargement du portail famille...</div>
+</div>
+
+<script>
+let token = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('brainup_parent_token') || '';
+if (token) sessionStorage.setItem('brainup_parent_token', token);
+
+let familyData = null;
+let activeEnrollment = null;
+let slotsData = [];
+let bookingsData = [];
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch('/api/parent' + path, { ...opts, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+  return data;
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function formatDate(dStr) {
+  if (!dStr) return '';
+  const d = new Date(dStr + 'T00:00:00');
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+async function loadData() {
+  if (!token) {
+    renderError("Lien d'accès manquant ou incomplet. Veuillez utiliser le lien sécurisé envoyé par BrainUp.");
+    return;
+  }
+  try {
+    familyData = await api('/me');
+    if (!familyData.enrollments || familyData.enrollments.length === 0) {
+      renderNoEnrollment();
+      return;
+    }
+    activeEnrollment = familyData.enrollments[0];
+    await reloadEnrollmentViews();
+  } catch (err) {
+    renderError(err.message);
+  }
+}
+
+async function reloadEnrollmentViews() {
+  if (!activeEnrollment) return;
+  try {
+    [slotsData, bookingsData] = await Promise.all([
+      api(`/slots?enrollment_id=${activeEnrollment.id}`),
+      api('/bookings')
+    ]);
+    renderPortal();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+function renderError(msg) {
+  document.getElementById('app').innerHTML = `
+    <div class="card token-error">
+      <img src="/assets/logo-full.png" alt="BrainUp" style="height:55px; margin-bottom:16px;">
+      <h2>Accès non autorisé</h2>
+      <p style="color:var(--muted); line-height:1.5;">${msg}</p>
+      <div style="margin-top:20px; font-size:13px; color:var(--muted);">
+        Besoin d'aide ? Contactez l'accueil BrainUp au <strong>57 149 933</strong>
+      </div>
+    </div>
+  `;
+}
+
+function renderNoEnrollment() {
+  document.getElementById('app').innerHTML = `
+    <header>
+      <div class="brand">
+        <img src="/assets/logo-full.png" alt="BrainUp">
+        <span class="brand-title">Portail Famille</span>
+      </div>
+      <div class="family-pill">Famille ${familyData.family.parent_name}</div>
+    </header>
+    <main>
+      <div class="card" style="text-align:center; padding:40px 20px;">
+        <h3>Aucune inscription active</h3>
+        <p style="color:var(--muted);">Aucun dossier d'inscription actif n'a été trouvé pour votre famille.</p>
+      </div>
+    </main>
+  `;
+}
+
+function renderPortal() {
+  const currentChildBookings = bookingsData.filter(b => b.child_id === activeEnrollment.child_id);
+  const upcomingBookings = currentChildBookings.filter(b => b.status === 'confirmed');
+  const pastBookings = currentChildBookings.filter(b => b.status !== 'confirmed');
+
+  const html = `
+    <header>
+      <div class="brand">
+        <img src="/assets/logo-full.png" alt="BrainUp">
+        <span class="brand-title">Espace Famille</span>
+      </div>
+      <div class="family-pill">Famille ${familyData.family.parent_name}</div>
+    </header>
+
+    <main>
+      <!-- Onglets Enfants -->
+      <div class="child-tabs">
+        ${familyData.enrollments.map(e => `
+          <button class="child-tab ${e.id === activeEnrollment.id ? 'active' : ''}" onclick="selectEnrollment(${e.id})">
+            👤 ${e.prenom} ${e.nom}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Fiche Dossier Enfant -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="margin:0 0 6px;">${activeEnrollment.prenom} ${activeEnrollment.nom}</h2>
+            <div style="font-size:13.5px; color:var(--muted);">
+              Dossier N° <strong>${activeEnrollment.number || 'N/A'}</strong> —
+              Valide du <strong>${activeEnrollment.start_date}</strong> au <strong>${activeEnrollment.end_date}</strong>
+            </div>
+          </div>
+          <span class="enrollment-badge status-${activeEnrollment.status}">${activeEnrollment.status}</span>
+        </div>
+
+        <div class="quota-box">
+          📅 <strong>Règle de réservation :</strong> Maximum <strong>${activeEnrollment.weekly_limit} séances</strong> par semaine.
+          <br>⏱️ <em>Toute annulation doit être effectuée au moins 5 heures à l'avance pour libérer la séance.</em>
+        </div>
+
+        <!-- Créneaux Disponibles -->
+        <h3 style="margin-top:28px;">📅 Réserver un nouvel atelier</h3>
+        ${slotsData.length === 0 ? `
+          <div class="empty-state">Aucun créneau ouvert pour le moment pour les modules de cette inscription.</div>
+        ` : `
+          <div class="slot-grid">
+            ${slotsData.map(s => `
+              <div class="slot-card">
+                <div>
+                  <div class="slot-title">${s.title}</div>
+                  <div class="slot-datetime">${formatDate(s.date)} à ${s.time}</div>
+                  <div class="slot-places">${s.remaining} place(s) disponible(s)</div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="bookSlot(${activeEnrollment.id}, ${s.id})">
+                  Réserver ce créneau
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- Séances à venir -->
+      <div class="card">
+        <h3>Séances confirmées à venir (${upcomingBookings.length})</h3>
+        ${upcomingBookings.length === 0 ? `
+          <div class="empty-state">Aucune séance réservée à venir.</div>
+        ` : `
+          <div>
+            ${upcomingBookings.map(b => `
+              <div class="booking-item">
+                <div>
+                  <strong>${b.title}</strong>
+                  <div style="font-size:13px; color:var(--muted); margin-top:2px;">
+                    ${formatDate(b.date)} à ${b.time}
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span class="badge badge-confirmed">Confirmée</span>
+                  <button class="btn btn-danger-outline btn-sm" onclick="cancelBooking(${b.id})">
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- Historique & Présences -->
+      <div class="card">
+        <h3>Historique des séances</h3>
+        ${pastBookings.length === 0 ? `
+          <div class="empty-state">Aucun historique pour le moment.</div>
+        ` : `
+          <div>
+            ${pastBookings.map(b => `
+              <div class="booking-item">
+                <div>
+                  <strong>${b.title}</strong>
+                  <div style="font-size:13px; color:var(--muted); margin-top:2px;">
+                    ${formatDate(b.date)} à ${b.time}
+                  </div>
+                </div>
+                <div>
+                  <span class="badge badge-${b.status}">${badgeLabel(b.status)}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    </main>
+  `;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function badgeLabel(st) {
+  const map = {
+    attended: 'Présent',
+    confirmed: 'Confirmée',
+    absent: 'Absent',
+    absent_excuse: 'Absent excusé',
+    cancelled: 'Annulée'
+  };
+  return map[st] || st;
+}
+
+function selectEnrollment(id) {
+  activeEnrollment = familyData.enrollments.find(e => e.id === id);
+  reloadEnrollmentViews();
+}
+
+async function bookSlot(enrollmentId, slotId) {
+  try {
+    await api('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({ enrollment_id: enrollmentId, slot_id: slotId })
+    });
+    toast('Réservation confirmée avec succès !');
+    await reloadEnrollmentViews();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function cancelBooking(id) {
+  if (!confirm("Voulez-vous vraiment annuler cette réservation ? Attention : si la séance est dans moins de 5 heures, elle sera comptée comme absence.")) return;
+  try {
+    const res = await api(`/bookings/${id}/cancel`, { method: 'POST' });
+    if (res.late) {
+      toast('Séance annulée tardivement (comptabilisée en absence selon le règlement).');
+    } else {
+      toast('Réservation annulée. La place a été libérée.');
+    }
+    await reloadEnrollmentViews();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
