@@ -5,10 +5,10 @@
   "main": "server.js",
   "type": "commonjs",
   "engines": {
-    "node": "20.19.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node database/seed.js && node server.js",
     "seed": "node database/seed.js",
     "test": "node tests/smoke.js && node tests/buttons-audit.js"
   },

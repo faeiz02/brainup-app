@@ -82,12 +82,14 @@ function run() {
 
   const adminCount = db.prepare('SELECT COUNT(*) c FROM admin_users').get().c;
   if (adminCount === 0) {
-    const username = process.env.ADMIN_USERNAME || 'admin';
     const password = process.env.ADMIN_PASSWORD || 'BrainUp2026!';
-    const hash = bcrypt.hashSync(password, 12);
-    db.prepare('INSERT INTO admin_users (username, password_hash, must_change_password) VALUES (?,?,1)').run(username, hash);
-    console.log(`✔ compte admin créé → identifiant: "${username}" / mot de passe: "${password}"`);
-    console.log('⚠️  Un changement de mot de passe sera exigé automatiquement à la première connexion.');
+    const hash = bcrypt.hashSync(password, 10);
+    const insertUser = db.prepare('INSERT INTO admin_users (username, password_hash, role, must_change_password) VALUES (?,?,?,?)');
+    insertUser.run('admin', hash, 'admin', 0);
+    insertUser.run('accueil', hash, 'accueil', 0);
+    insertUser.run('faeiz', hash, 'compta', 0);
+    insertUser.run('yassine', hash, 'coach', 0);
+    console.log(`✔ Comptes par défaut initialisés (admin, accueil, faeiz, yassine) avec le mot de passe: "${password}"`);
   }
 
   const settingsDefaults = {
