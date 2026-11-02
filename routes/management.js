@@ -39,38 +39,231 @@ router.post('/users', wrap((req, res) => {
 }));
 
 /* ---- CRM : prospects, doublons, tâches ---- */
+const ALLOWED_STATUSES = ['a_appeler', 'contacte', 'interesse', 'a_relancer', 'converti', 'perdu', 'injoignable'];
+const ALLOWED_LOST_REASONS = [
+  'Prix trop élevé',
+  'Distance / localisation',
+  'Horaires incompatibles',
+  'Enfant non intéressé',
+  'Parent ayant choisi un autre centre',
+  'Projet abandonné',
+  'Autre'
+];
+
 router.get('/prospects', wrap((req, res) => {
   const { q, status, phone } = req.query; let sql = 'SELECT * FROM prospects WHERE 1=1'; const p = [];
   if (status) { sql += ' AND status=?'; p.push(status); }
   if (phone) { sql += ' AND phone=?'; p.push(R.normPhone(phone)); }
   if (q) { sql += ' AND (name LIKE ? OR phone LIKE ?)'; p.push(`%${q}%`, `%${q}%`); }
-  res.json(db.prepare(sql + ' ORDER BY created_at DESC LIMIT 200').all(...p));
+  const rows = db.prepare(sql + ' ORDER BY created_at DESC LIMIT 200').all(...p);
+  res.json(rows.map(r => ({
+    ...r,
+    unanswered_calls: db.prepare('SELECT COUNT(*) c FROM prospect_calls WHERE prospect_id=? AND is_unanswered=1').get(r.id).c,
+    children_count: db.prepare('SELECT COUNT(*) c FROM prospect_children WHERE prospect_id=?').get(r.id).c,
+  })));
 }));
+
+router.delete('/prospects/:id', wrap((req, res) => {
+  if (req.role !== 'admin') return res.status(403).json({ error: 'Réservé à l\'administrateur.' });
+  const p = db.prepare('SELECT * FROM prospects WHERE id=?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Prospect introuvable.' });
+
+  // Règle CDC §1.1 : empêcher une suppression qui ferait perdre l'historique
+  const appCount = db.prepare('SELECT COUNT(*) c FROM appointments WHERE prospect_id=?').get(p.id).c;
+  const callsCount = db.prepare('SELECT COUNT(*) c FROM prospect_calls WHERE prospect_id=?').get(p.id).c;
+  const taskCount = db.prepare('SELECT COUNT(*) c FROM tasks WHERE prospect_id=?').get(p.id).c;
+  const hasFamily = !!p.family_id;
+
+  if (appCount > 0 || callsCount > 0 || taskCount > 0 || hasFamily) {
+    return res.status(400).json({
+      error: 'Impossible de supprimer ce prospect car il possède des rendez-vous ou des données liées dans l\'historique. Pour préserver l\'historique commercial, veuillez plutôt le classer en « Perdu » ou « Injoignable ».'
+    });
+  }
+
+  db.prepare('DELETE FROM prospect_children WHERE prospect_id=?').run(p.id);
+  db.prepare('DELETE FROM prospects WHERE id=?').run(p.id);
+  R.audit(req.userId, 'prospect.delete', 'prospect', p.id);
+  res.json({ ok: true });
+}));
+
 router.post('/prospects', wrap((req, res) => {
   const b = req.body || {}; if (!need(res, b, ['name', 'phone', 'source'])) return;
   const phone = R.normPhone(b.phone);
   const dups = db.prepare('SELECT id,name,phone,status FROM prospects WHERE phone=?').all(phone);
   if (dups.length && !b.force) return res.status(409).json({ error: 'Un prospect avec ce téléphone existe déjà.', duplicates: dups });
-  const r = db.prepare('INSERT INTO prospects (name,phone,email,source,notes,assigned_to,next_follow_up) VALUES (?,?,?,?,?,?,?)')
-    .run(b.name, phone, b.email || '', b.source, b.notes || '', req.userId, b.next_follow_up || null);
-  R.audit(req.userId, 'prospect.create', 'prospect', r.lastInsertRowid);
+
+  const status = b.status || 'a_appeler';
+  if (!ALLOWED_STATUSES.includes(status)) return res.status(400).json({ error: 'Statut commercial invalide.' });
+
+  if (status === 'perdu') {
+    if (!b.lost_reason || !ALLOWED_LOST_REASONS.includes(b.lost_reason)) {
+      return res.status(400).json({ error: 'La raison de la perte est obligatoire lorsque le statut est « Perdu ».' });
+    }
+    if (b.lost_reason === 'Autre' && !b.lost_comment?.trim()) {
+      return res.status(400).json({ error: 'Un commentaire explicatif est obligatoire lorsque la raison est « Autre ».' });
+    }
+  }
+
+  const r = db.prepare(`
+    INSERT INTO prospects (name,phone,email,source,status,lost_reason,lost_comment,notes,assigned_to,next_follow_up)
+    VALUES (?,?,?,?,?,?,?,?,?,?)
+  `).run(
+    b.name, phone, b.email || '', b.source, status,
+    status === 'perdu' ? b.lost_reason : null,
+    (status === 'perdu' && b.lost_reason === 'Autre') ? b.lost_comment.trim() : (b.lost_comment || null),
+    b.notes || '', req.userId, b.next_follow_up || null
+  );
+
+  R.audit(req.userId, 'prospect.create', 'prospect', r.lastInsertRowid, { status });
   res.status(201).json(db.prepare('SELECT * FROM prospects WHERE id=?').get(r.lastInsertRowid));
 }));
+
 router.patch('/prospects/:id', wrap((req, res) => {
-  const ok = ['a_appeler', 'contacte', 'interesse', 'a_relancer', 'converti', 'perdu', 'injoignable'];
-  const b = req.body || {}; if (b.status && !ok.includes(b.status)) return res.status(400).json({ error: 'Statut invalide.' });
-  const e = db.prepare('SELECT * FROM prospects WHERE id=?').get(req.params.id); if (!e) return res.status(404).json({ error: 'Introuvable.' });
-  db.prepare('UPDATE prospects SET status=?, next_follow_up=?, notes=? WHERE id=?').run(b.status ?? e.status, b.next_follow_up ?? e.next_follow_up, b.notes ?? e.notes, e.id);
-  if (b.status && b.status !== e.status) R.audit(req.userId, 'prospect.status', 'prospect', e.id, { from: e.status, to: b.status });
+  const b = req.body || {};
+  const e = db.prepare('SELECT * FROM prospects WHERE id=?').get(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Introuvable.' });
+
+  const nextStatus = b.status ?? e.status;
+  if (!ALLOWED_STATUSES.includes(nextStatus)) return res.status(400).json({ error: 'Statut commercial invalide.' });
+
+  let lostReason = e.lost_reason;
+  let lostComment = e.lost_comment;
+
+  if (nextStatus === 'perdu') {
+    const reason = b.lost_reason || e.lost_reason;
+    if (!reason || !ALLOWED_LOST_REASONS.includes(reason)) {
+      return res.status(400).json({ error: 'La raison de la perte est obligatoire lorsque le statut est « Perdu ».' });
+    }
+    if (reason === 'Autre') {
+      const comment = (b.lost_comment !== undefined ? b.lost_comment : e.lost_comment) || '';
+      if (!comment.trim()) {
+        return res.status(400).json({ error: 'Un commentaire explicatif est obligatoire lorsque la raison est « Autre ».' });
+      }
+      lostComment = comment.trim();
+    } else {
+      lostComment = null;
+    }
+    lostReason = reason;
+  } else if (b.status && b.status !== 'perdu') {
+    lostReason = null;
+    lostComment = null;
+  }
+
+  db.prepare(`
+    UPDATE prospects
+    SET status=?, lost_reason=?, lost_comment=?, next_follow_up=?, notes=?, name=?, phone=?, email=?, source=?
+    WHERE id=?
+  `).run(
+    nextStatus,
+    lostReason,
+    lostComment,
+    b.next_follow_up ?? e.next_follow_up,
+    b.notes ?? e.notes,
+    b.name ?? e.name,
+    b.phone ? R.normPhone(b.phone) : e.phone,
+    b.email ?? e.email,
+    b.source ?? e.source,
+    e.id
+  );
+
+  if (nextStatus !== e.status) {
+    R.audit(req.userId, 'prospect.status', 'prospect', e.id, { from: e.status, to: nextStatus, lost_reason: lostReason });
+  }
   res.json(db.prepare('SELECT * FROM prospects WHERE id=?').get(e.id));
 }));
+
+/* ---- Journal des appels & Règle des 3 tentatives sans réponse (Injoignable) ---- */
+router.get('/prospects/:id/calls', wrap((req, res) => {
+  const p = db.prepare('SELECT id FROM prospects WHERE id=?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Prospect introuvable.' });
+  const calls = db.prepare(`
+    SELECT c.*, u.username caller_name
+    FROM prospect_calls c
+    LEFT JOIN admin_users u ON u.id = c.user_id
+    WHERE c.prospect_id = ?
+    ORDER BY c.called_at DESC
+  `).all(p.id);
+  const unanswered_count = db.prepare('SELECT COUNT(*) c FROM prospect_calls WHERE prospect_id=? AND is_unanswered=1').get(p.id).c;
+  res.json({
+    calls,
+    unanswered_count,
+    suggest_unreachable: unanswered_count >= 3
+  });
+}));
+
+router.post('/prospects/:id/calls', wrap((req, res) => {
+  const p = db.prepare('SELECT * FROM prospects WHERE id=?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Prospect introuvable.' });
+  const b = req.body || {};
+  if (!b.result) return res.status(400).json({ error: 'Résultat de l\'appel requis.' });
+
+  // Règle CDC : Une tentative n'est comptée comme sans réponse QUE si le parent n'a pas répondu.
+  // 'sans_reponse', 'repondeur', 'occupe' -> is_unanswered = 1
+  // 'contacte_interesse', 'contacte_refus', 'contacte_echange' -> is_unanswered = 0
+  const is_unanswered = ['sans_reponse', 'repondeur', 'occupe'].includes(b.result) ? 1 : 0;
+  const called_at = b.called_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  const r = db.prepare(`
+    INSERT INTO prospect_calls (prospect_id, user_id, called_at, result, is_unanswered, notes)
+    VALUES (?,?,?,?,?,?)
+  `).run(p.id, req.userId, called_at, b.result, is_unanswered, b.notes || '');
+
+  const unanswered_count = db.prepare('SELECT COUNT(*) c FROM prospect_calls WHERE prospect_id=? AND is_unanswered=1').get(p.id).c;
+  let newStatus = p.status;
+
+  // Si demandé explicitement ou si 3 tentatives sans réponse
+  if (b.set_injoignable || (b.auto_status && unanswered_count >= 3)) {
+    newStatus = 'injoignable';
+    db.prepare('UPDATE prospects SET status=? WHERE id=?').run('injoignable', p.id);
+    R.audit(req.userId, 'prospect.status', 'prospect', p.id, { from: p.status, to: 'injoignable', reason: '3_unanswered_calls' });
+  } else if (!is_unanswered && p.status === 'a_appeler') {
+    // Si premier contact réussi et prospect était "à appeler", bascule à "contacté"
+    newStatus = 'contacte';
+    db.prepare('UPDATE prospects SET status=? WHERE id=?').run('contacte', p.id);
+    R.audit(req.userId, 'prospect.status', 'prospect', p.id, { from: p.status, to: 'contacte' });
+  }
+
+  R.audit(req.userId, 'prospect.call', 'prospect', p.id, { result: b.result, is_unanswered });
+  res.status(201).json({
+    id: r.lastInsertRowid,
+    unanswered_count,
+    suggest_unreachable: unanswered_count >= 3,
+    status: newStatus
+  });
+}));
+
+/* ---- Enfants saisis sur le prospect / RDV ---- */
+router.get('/prospects/:id/children', wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM prospect_children WHERE prospect_id=? ORDER BY id ASC').all(req.params.id));
+}));
+
+router.post('/prospects/:id/children', wrap((req, res) => {
+  const p = db.prepare('SELECT id FROM prospects WHERE id=?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Prospect introuvable.' });
+  const b = req.body || {};
+  if (!b.prenom || !b.nom) return res.status(400).json({ error: 'Prénom et nom de l\'enfant requis.' });
+  const r = db.prepare(`
+    INSERT INTO prospect_children (prospect_id, appointment_id, prenom, nom, age, level, interests)
+    VALUES (?,?,?,?,?,?,?)
+  `).run(p.id, b.appointment_id || null, b.prenom.trim(), b.nom.trim(), b.age ? Number(b.age) : null, b.level || '', b.interests || '');
+  res.status(201).json({ id: r.lastInsertRowid });
+}));
+
+// Route dépréciée pour compatibilité : conversion directe bloquée conformément au CDC §4
 router.post('/prospects/:id/convert', wrap((req, res) => {
   const p = db.prepare('SELECT * FROM prospects WHERE id=?').get(req.params.id); if (!p) return res.status(404).json({ error: 'Introuvable.' });
+  const app = db.prepare("SELECT * FROM appointments WHERE prospect_id=? AND result='inscription' ORDER BY date_time DESC LIMIT 1").get(p.id);
+  if (!app && !req.body.force) {
+    return res.status(400).json({
+      error: 'La conversion directe depuis la fiche prospect est désactivée (CDC §4). Le passage à une famille et aux inscriptions doit se faire après un rendez-vous dont le résultat est « Inscription ».'
+    });
+  }
   const f = db.prepare('INSERT INTO families (parent_name,phone,email,source) VALUES (?,?,?,?)').run(p.name, p.phone, p.email, p.source);
   db.prepare("UPDATE prospects SET family_id=?, status='converti' WHERE id=?").run(f.lastInsertRowid, p.id);
   R.audit(req.userId, 'prospect.convert', 'prospect', p.id, { family_id: f.lastInsertRowid });
   res.status(201).json({ family_id: f.lastInsertRowid });
 }));
+
 router.get('/tasks', wrap((req, res) => {
   const v = req.query.view; const today = new Date().toISOString().slice(0, 10);
   const cond = v === 'late' ? 'due_at < ?' : v === 'upcoming' ? 'due_at > ?' : 'substr(due_at,1,10) = ?';
@@ -84,31 +277,175 @@ router.post('/tasks', wrap((req, res) => {
 }));
 router.patch('/tasks/:id', wrap((req, res) => { db.prepare('UPDATE tasks SET status=? WHERE id=?').run(req.body.status === 'done' ? 'done' : 'todo', req.params.id); res.json({ ok: true }); }));
 
-/* ---- Rendez-vous (report = nouvelle occurrence liée) ---- */
+/* ---- Rendez-vous (report = nouvelle occurrence liée & multi-enfants) ---- */
 router.get('/appointments', wrap((req, res) => {
   const { status, from, to } = req.query; let sql = 'SELECT a.*, p.name prospect_name, p.phone FROM appointments a LEFT JOIN prospects p ON p.id=a.prospect_id WHERE 1=1'; const p = [];
   if (status) { sql += ' AND a.status=?'; p.push(status); } if (from) { sql += ' AND a.date_time>=?'; p.push(from); } if (to) { sql += ' AND a.date_time<=?'; p.push(to); }
-  res.json(db.prepare(sql + ' ORDER BY a.date_time').all(...p));
+  const rows = db.prepare(sql + ' ORDER BY a.date_time').all(...p);
+  res.json(rows.map(a => ({
+    ...a,
+    children: db.prepare('SELECT * FROM prospect_children WHERE appointment_id=? OR (appointment_id IS NULL AND prospect_id=?)').all(a.id, a.prospect_id)
+  })));
 }));
+
+router.get('/appointments/:id', wrap((req, res) => {
+  const a = db.prepare('SELECT a.*, p.name prospect_name, p.phone FROM appointments a LEFT JOIN prospects p ON p.id=a.prospect_id WHERE a.id=?').get(req.params.id);
+  if (!a) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+  const children = db.prepare('SELECT * FROM prospect_children WHERE appointment_id=? OR (appointment_id IS NULL AND prospect_id=?)').all(a.id, a.prospect_id);
+  res.json({ ...a, children });
+}));
+
 router.post('/appointments', wrap((req, res) => {
   const b = req.body || {}; if (!need(res, b, ['prospect_id', 'date_time'])) return;
-  const r = db.prepare('INSERT INTO appointments (prospect_id,date_time,duration_minutes,type,notes,responsible) VALUES (?,?,?,?,?,?)').run(b.prospect_id, b.date_time, b.duration_minutes || 30, b.type || 'decouverte', b.notes || '', req.userId);
-  res.status(201).json({ id: r.lastInsertRowid });
+  const p = db.prepare('SELECT * FROM prospects WHERE id=?').get(b.prospect_id);
+  if (!p) return res.status(404).json({ error: 'Prospect introuvable.' });
+
+  const r = db.prepare(`
+    INSERT INTO appointments (prospect_id,date_time,duration_minutes,type,notes,responsible)
+    VALUES (?,?,?,?,?,?)
+  `).run(b.prospect_id, b.date_time, b.duration_minutes || 30, b.type || 'decouverte', b.notes || '', req.userId);
+  const appId = r.lastInsertRowid;
+
+  // Enregistrement des enfants saisis pour ce rendez-vous (CDC §3)
+  if (Array.isArray(b.children)) {
+    const insKid = db.prepare(`
+      INSERT INTO prospect_children (prospect_id, appointment_id, prenom, nom, age, level, interests)
+      VALUES (?,?,?,?,?,?,?)
+    `);
+    for (const k of b.children) {
+      if (k.prenom && k.nom) {
+        insKid.run(p.id, appId, k.prenom.trim(), k.nom.trim(), k.age ? Number(k.age) : null, k.level || '', k.interests || '');
+      }
+    }
+  }
+
+  R.audit(req.userId, 'appointment.create', 'appointment', appId, { children_count: Array.isArray(b.children) ? b.children.length : 0 });
+  res.status(201).json({ id: appId });
 }));
+
 router.patch('/appointments/:id', wrap((req, res) => {
   const e = db.prepare('SELECT * FROM appointments WHERE id=?').get(req.params.id); if (!e) return res.status(404).json({ error: 'Introuvable.' });
   const b = req.body || {};
-  db.prepare('UPDATE appointments SET status=?, attendance=?, result=?, notes=? WHERE id=?').run(b.status ?? e.status, b.attendance ?? e.attendance, b.result ?? e.result, b.notes ?? e.notes, e.id);
-  R.audit(req.userId, 'appointment.update', 'appointment', e.id, b); res.json({ ok: true });
+
+  db.prepare(`
+    UPDATE appointments SET status=?, attendance=?, result=?, notes=?, date_time=?, type=? WHERE id=?
+  `).run(
+    b.status ?? e.status,
+    b.attendance ?? e.attendance,
+    b.result ?? e.result,
+    b.notes ?? e.notes,
+    b.date_time ?? e.date_time,
+    b.type ?? e.type,
+    e.id
+  );
+
+  // Mise à jour éventuelle des enfants rattachés
+  if (Array.isArray(b.children)) {
+    db.prepare('DELETE FROM prospect_children WHERE appointment_id=?').run(e.id);
+    const insKid = db.prepare(`
+      INSERT INTO prospect_children (prospect_id, appointment_id, prenom, nom, age, level, interests)
+      VALUES (?,?,?,?,?,?,?)
+    `);
+    for (const k of b.children) {
+      if (k.prenom && k.nom) {
+        insKid.run(e.prospect_id, e.id, k.prenom.trim(), k.nom.trim(), k.age ? Number(k.age) : null, k.level || '', k.interests || '');
+      }
+    }
+  }
+
+  R.audit(req.userId, 'appointment.update', 'appointment', e.id, b);
+  res.json({ ok: true });
 }));
+
 router.post('/appointments/:id/reschedule', wrap((req, res) => {
   const e = db.prepare('SELECT * FROM appointments WHERE id=?').get(req.params.id); if (!e) return res.status(404).json({ error: 'Introuvable.' });
   if (!need(res, req.body || {}, ['date_time'])) return;
   const tx = db.transaction(() => {
     db.prepare("UPDATE appointments SET status='reporte' WHERE id=?").run(e.id);
-    return db.prepare('INSERT INTO appointments (prospect_id,date_time,duration_minutes,type,responsible,rescheduled_from) VALUES (?,?,?,?,?,?)').run(e.prospect_id, req.body.date_time, e.duration_minutes, e.type, e.responsible, e.id).lastInsertRowid;
+    const newId = db.prepare('INSERT INTO appointments (prospect_id,date_time,duration_minutes,type,responsible,rescheduled_from) VALUES (?,?,?,?,?,?)')
+      .run(e.prospect_id, req.body.date_time, e.duration_minutes, e.type, e.responsible, e.id).lastInsertRowid;
+    // Dupliquer les enfants sur la nouvelle occurrence
+    const kids = db.prepare('SELECT * FROM prospect_children WHERE appointment_id=?').all(e.id);
+    const insKid = db.prepare('INSERT INTO prospect_children (prospect_id, appointment_id, prenom, nom, age, level, interests) VALUES (?,?,?,?,?,?,?)');
+    kids.forEach(k => insKid.run(e.prospect_id, newId, k.prenom, k.nom, k.age, k.level, k.interests));
+    return newId;
   });
-  const id = tx(); R.audit(req.userId, 'appointment.reschedule', 'appointment', e.id, { new_id: id }); res.status(201).json({ id, rescheduled_from: e.id });
+  const id = tx();
+  R.audit(req.userId, 'appointment.reschedule', 'appointment', e.id, { new_id: id });
+  res.status(201).json({ id, rescheduled_from: e.id });
+}));
+
+/* ---- Passage à la famille et inscription après RDV réussi (CDC §4, §6, §7) ---- */
+router.post('/appointments/:id/convert-to-family', wrap((req, res) => {
+  const a = db.prepare('SELECT * FROM appointments WHERE id=?').get(req.params.id);
+  if (!a) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+  if (a.result !== 'inscription') {
+    return res.status(400).json({
+      error: 'Le passage à une famille et aux inscriptions nécessite un rendez-vous dont le résultat est « Inscription » (CDC §4).'
+    });
+  }
+
+  const p = db.prepare('SELECT * FROM prospects WHERE id=?').get(a.prospect_id);
+  if (!p) return res.status(404).json({ error: 'Prospect introuvable.' });
+
+  // Si la famille existe déjà pour ce prospect
+  if (p.family_id) {
+    return res.json({
+      family_id: p.family_id,
+      already_converted: true,
+      children: db.prepare('SELECT * FROM children WHERE family_id=?').all(p.family_id)
+    });
+  }
+
+  const tx = db.transaction(() => {
+    // 1. Création de la fiche famille
+    const f = db.prepare(`
+      INSERT INTO families (parent_name, phone, email, source)
+      VALUES (?,?,?,?)
+    `).run(p.name, p.phone, p.email, p.source);
+    const familyId = f.lastInsertRowid;
+
+    // 2. Transfert automatique des enfants saisis lors du RDV
+    const prospectKids = db.prepare(`
+      SELECT * FROM prospect_children WHERE appointment_id=? OR (appointment_id IS NULL AND prospect_id=?)
+    `).all(a.id, p.id);
+
+    const createdChildren = [];
+    const insKid = db.prepare(`
+      INSERT INTO children (family_id, prenom, nom, level, interests, notes)
+      VALUES (?,?,?,?,?,?)
+    `);
+
+    if (prospectKids.length > 0) {
+      for (const pk of prospectKids) {
+        const kRes = insKid.run(
+          familyId,
+          pk.prenom,
+          pk.nom,
+          pk.level || '',
+          pk.interests || '',
+          pk.age ? `Âge au RDV : ${pk.age} ans` : ''
+        );
+        createdChildren.push({ id: kRes.lastInsertRowid, prenom: pk.prenom, nom: pk.nom });
+      }
+    } else {
+      // Si aucun enfant spécifique n'avait été saisi, créer une fiche avec le nom du prospect
+      const parts = p.name.split(' ');
+      const prenom = parts[0] || 'Enfant';
+      const nom = parts.slice(1).join(' ') || p.name;
+      const kRes = insKid.run(familyId, prenom, nom, '', '', 'Créé automatiquement depuis prospect');
+      createdChildren.push({ id: kRes.lastInsertRowid, prenom, nom });
+    }
+
+    // 3. Passage du prospect au statut commercial "converti"
+    db.prepare("UPDATE prospects SET family_id=?, status='converti' WHERE id=?").run(familyId, p.id);
+
+    return { familyId, createdChildren };
+  });
+
+  const out = tx();
+  R.audit(req.userId, 'appointment.convert_to_family', 'appointment', a.id, { family_id: out.familyId, children_count: out.createdChildren.length });
+  res.status(201).json(out);
 }));
 
 /* ---- Familles & enfants (CIN masquée sauf admin) ---- */

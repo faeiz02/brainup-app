@@ -44,10 +44,31 @@ module.exports = function (db) {
   CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT NOT NULL, entity TEXT,
     entity_id INTEGER, details TEXT, created_at TEXT DEFAULT (datetime('now')));
+  CREATE TABLE IF NOT EXISTS prospect_children (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prospect_id INTEGER NOT NULL REFERENCES prospects(id) ON DELETE CASCADE,
+    appointment_id INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+    prenom TEXT NOT NULL,
+    nom TEXT NOT NULL,
+    age INTEGER,
+    level TEXT DEFAULT '',
+    interests TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')));
+  CREATE TABLE IF NOT EXISTS prospect_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prospect_id INTEGER NOT NULL REFERENCES prospects(id) ON DELETE CASCADE,
+    user_id INTEGER,
+    called_at TEXT DEFAULT (datetime('now')),
+    result TEXT NOT NULL,
+    is_unanswered INTEGER DEFAULT 0,
+    notes TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')));
   `);
   const addCol = (t, c, def) => {
     if (!db.prepare(`PRAGMA table_info(${t})`).all().some(x => x.name === c)) db.exec(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`);
   };
+  addCol('prospects', 'lost_reason', 'TEXT');
+  addCol('prospects', 'lost_comment', 'TEXT');
   addCol('admin_users', 'role', "TEXT DEFAULT 'admin'");   // admin | accueil | compta | coach
   addCol('slots', 'coach_id', 'INTEGER');
   addCol('bookings', 'enrollment_id', 'INTEGER');

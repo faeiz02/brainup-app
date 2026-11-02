@@ -133,31 +133,84 @@ async function runAudit() {
   assert.strictEqual(patchP.status, 200);
   assert.strictEqual(patchP.body.status, 'interesse');
 
-  // Bouton "Convertir" (POST convert)
-  const convP = await accueilClient.call(`/api/admin/prospects/${pId}/convert`, 'POST');
-  assert.strictEqual(convP.status, 201);
-  const familyId = convP.body.family_id;
-  assert.ok(familyId, 'Famille créée suite conversion');
-  console.log('✔ Boutons CRM & Prospects (+ Prospect, Gérer, Doublons, Convertir) 100% fonctionnels.');
+  // Statut Perdu : refus sans raison, validation avec raison (CDC §5)
+  const failLost = await accueilClient.call(`/api/admin/prospects/${pId}`, 'PATCH', { status: 'perdu' });
+  assert.strictEqual(failLost.status, 400, 'Perdu sans raison refusé');
+  const okLost = await accueilClient.call(`/api/admin/prospects/${pId}`, 'PATCH', {
+    status: 'perdu',
+    lost_reason: 'Prix trop élevé'
+  });
+  assert.strictEqual(okLost.status, 200, 'Perdu avec raison accepté');
 
-  // 4. Rendez-vous
-  // Bouton "+ Planifier un RDV"
+  // Remise à "a_appeler" pour tester les appels
+  await accueilClient.call(`/api/admin/prospects/${pId}`, 'PATCH', { status: 'a_appeler' });
+
+  // Tentatives d'appels & règle des 3 sans réponse (CDC §5)
+  const call1 = await accueilClient.call(`/api/admin/prospects/${pId}/calls`, 'POST', { result: 'sans_reponse', notes: 'Sonnerie dans le vide' });
+  assert.strictEqual(call1.status, 201);
+  assert.strictEqual(call1.body.unanswered_count, 1);
+
+  const call2 = await accueilClient.call(`/api/admin/prospects/${pId}/calls`, 'POST', { result: 'repondeur', notes: 'Messagerie vocale' });
+  assert.strictEqual(call2.body.unanswered_count, 2);
+  assert.strictEqual(call2.body.suggest_unreachable, false);
+
+  const call3 = await accueilClient.call(`/api/admin/prospects/${pId}/calls`, 'POST', { result: 'occupe', auto_status: true });
+  assert.strictEqual(call3.body.unanswered_count, 3);
+  assert.strictEqual(call3.body.suggest_unreachable, true);
+  assert.strictEqual(call3.body.status, 'injoignable');
+
+  // Remise à "interesse"
+  await accueilClient.call(`/api/admin/prospects/${pId}`, 'PATCH', { status: 'interesse' });
+
+  // Conversion directe bloquée (CDC §4)
+  const convBlocked = await accueilClient.call(`/api/admin/prospects/${pId}/convert`, 'POST');
+  assert.strictEqual(convBlocked.status, 400, 'Conversion directe depuis prospect bloquée (CDC §4)');
+
+  // 4. Rendez-vous avec saisie multi-enfants (CDC §3)
   const newRdv = await accueilClient.call('/api/admin/appointments', 'POST', {
     prospect_id: pId,
     date_time: '2026-11-05 14:30',
     type: 'decouverte',
-    notes: 'RDV découverte Robotique'
+    notes: 'RDV découverte Robotique',
+    children: [
+      { prenom: 'Amine', nom: 'Salah', age: 10, level: '5e primaire', interests: 'Robotique' },
+      { prenom: 'Nour', nom: 'Salah', age: 7, level: '2e primaire', interests: 'Scratch' }
+    ]
   });
   assert.strictEqual(newRdv.status, 201);
   const rdvId = newRdv.body.id;
 
-  // Bouton "Modifier" -> "Enregistrer"
+  // Suppression prospect impossible car RDV lié (CDC §1)
+  const delFail = await adminClient.call(`/api/admin/prospects/${pId}`, 'DELETE');
+  assert.strictEqual(delFail.status, 400, 'Suppression prospect avec données liées refusée (CDC §1)');
+
+  // Suppression d'un prospect sans données liées par admin autorisée
+  const pTemp = await adminClient.call('/api/admin/prospects', 'POST', { name: 'Temp Delete', phone: '99887766', source: 'visite' });
+  assert.strictEqual(pTemp.status, 201);
+  const delOk = await adminClient.call(`/api/admin/prospects/${pTemp.body.id}`, 'DELETE');
+  assert.strictEqual(delOk.status, 200, 'Suppression prospect vide par admin réussie');
+
+  // Non-admin ne peut pas supprimer (403)
+  const pTemp2 = await adminClient.call('/api/admin/prospects', 'POST', { name: 'Temp Delete 2', phone: '99887755', source: 'visite' });
+  const delForbidden = await accueilClient.call(`/api/admin/prospects/${pTemp2.body.id}`, 'DELETE');
+  assert.strictEqual(delForbidden.status, 403, 'Suppression prospect par accueil interdite (CDC §1)');
+  await adminClient.call(`/api/admin/prospects/${pTemp2.body.id}`, 'DELETE');
+
+  // Réalisation du RDV : Résultat = Inscription (CDC §6)
   const patchRdv = await accueilClient.call(`/api/admin/appointments/${rdvId}`, 'PATCH', {
     status: 'confirme',
     attendance: 'present',
     result: 'inscription'
   });
   assert.strictEqual(patchRdv.status, 200);
+
+  // Conversion pilotée par le résultat du rendez-vous (CDC §4, §6, §7)
+  const convRdv = await accueilClient.call(`/api/admin/appointments/${rdvId}/convert-to-family`, 'POST');
+  assert.strictEqual(convRdv.status, 201);
+  assert.ok(convRdv.body.familyId);
+  assert.strictEqual(convRdv.body.createdChildren.length, 2, '2 enfants transférés vers la famille');
+  const familyId = convRdv.body.familyId;
+  console.log('✔ Workflow CRM & Prospects complet (Suppression sécurisée, Perdu avec raison, Appels/Injoignable, RDV Multi-enfants, Conversion pilotée par RDV) 100% validé.');
 
   // Bouton "Reporter" -> "Confirmer le report"
   const reschedRdv = await accueilClient.call(`/api/admin/appointments/${rdvId}/reschedule`, 'POST', {

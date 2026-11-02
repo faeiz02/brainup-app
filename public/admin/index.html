@@ -84,6 +84,9 @@
   .badge-attended { background: #e8f3fd; color: var(--blue-dark); }
   .badge-absent, .badge-a_relancer, .badge-partiellement_paye { background: #fdf1de; color: #8a5a00; }
   .badge-a_appeler, .badge-a_confirmer, .badge-en_attente, .badge-non_paye { background: #f3e8fd; color: var(--purple); }
+  .badge-contacte { background: #e1f5fe; color: #0288d1; }
+  .badge-interesse { background: #e8f5e9; color: #2e7d32; }
+  .badge-injoignable { background: #f0f0f0; color: #616161; }
   .badge-converti { background: #e0f2f1; color: #00695c; }
 
   /* Modals */
@@ -470,10 +473,20 @@ async function pageDashboard(content){
   `;
 }
 
-/* ================= 2. CRM & PROSPECTS (CDC §5) ================= */
+/* ================= 2. CRM & PROSPECTS (CDC Corrections v1.1) ================= */
 async function pageProspects(content){
   let statusFilter = '';
   let searchQ = '';
+
+  const STATUS_LABELS = {
+    a_appeler: 'À appeler',
+    contacte: 'Contacté',
+    interesse: 'Intéressé',
+    a_relancer: 'À relancer',
+    converti: 'Converti',
+    perdu: 'Perdu',
+    injoignable: 'Injoignable'
+  };
 
   async function refresh(){
     const params = new URLSearchParams();
@@ -481,7 +494,7 @@ async function pageProspects(content){
     if(searchQ) params.set('q', searchQ);
     const rawProspects = await api('/prospects?' + params.toString());
     const prospects = Array.isArray(rawProspects) ? rawProspects : [];
-    const tasks = await api('/tasks?view=late').catch(()=>[]);
+    const isAdmin = currentUser?.role === 'admin';
 
     document.getElementById('prospects-list').innerHTML = prospects.length === 0 ? `<tr><td colspan="7" class="empty">Aucun prospect trouvé.</td></tr>` :
       prospects.map(p => `
@@ -489,13 +502,17 @@ async function pageProspects(content){
           <td><strong>${p.name}</strong></td>
           <td>${p.phone}</td>
           <td>${p.source}</td>
-          <td>${statusBadge(p.status)}</td>
+          <td>
+            ${statusBadge(p.status)}
+            ${p.status === 'perdu' && p.lost_reason ? `<br><small style="color:var(--muted); font-size:11.5px;">Motif : ${p.lost_reason}</small>` : ''}
+            ${p.unanswered_calls > 0 ? `<br><span style="font-size:11px; font-weight:600; color:${p.unanswered_calls >= 3 ? 'var(--danger)' : 'var(--orange-dark)'};">📞 ${p.unanswered_calls} appel(s) sans réponse</span>` : ''}
+          </td>
           <td>${p.next_follow_up ? formatDate(p.next_follow_up) : '—'}</td>
           <td style="color:var(--muted); font-size:12.5px;">${p.notes || '—'}</td>
           <td>
             <div class="icon-row">
               <button class="btn btn-outline btn-sm" onclick="openProspectModal(${p.id})">Gérer</button>
-              ${p.status !== 'converti' ? `<button class="btn btn-success btn-sm" onclick="convertProspect(${p.id})">Convertir</button>` : ''}
+              ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteProspect(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Supprimer</button>` : ''}
             </div>
           </td>
         </tr>
@@ -506,7 +523,7 @@ async function pageProspects(content){
     <div class="page-header">
       <div>
         <h1 class="page-title">CRM & Gestion des Prospects</h1>
-        <p class="page-sub">Suivi commercial, relances et conversion des familles.</p>
+        <p class="page-sub">Suivi commercial, qualification des contacts, appels et relances.</p>
       </div>
       <button class="btn btn-primary" id="btn-new-prospect">+ Nouveau prospect</button>
     </div>
@@ -528,7 +545,7 @@ async function pageProspects(content){
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nom prospect</th><th>Téléphone</th><th>Source</th><th>Statut</th><th>Prochaine relance</th><th>Notes</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Nom prospect</th><th>Téléphone</th><th>Source</th><th>Statut commercial</th><th>Prochaine relance</th><th>Notes</th><th>Actions</th></tr></thead>
           <tbody id="prospects-list"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
         </table>
       </div>
@@ -542,22 +559,39 @@ async function pageProspects(content){
   await refresh();
 }
 
+async function deleteProspect(id, name){
+  if(!confirm(`Supprimer définitivement le prospect "${name}" ?\n\nNote : La suppression est réservée aux prospects sans données liées afin de préserver l'historique commercial.`)) return;
+  try {
+    await api(`/prospects/${id}`, { method: 'DELETE' });
+    toast('Prospect supprimé.');
+    loadPage('prospects');
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
 async function openProspectModal(id = null){
   let p = null;
+  let callsData = { calls: [], unanswered_count: 0, suggest_unreachable: false };
   if(id){
     const list = await api(`/prospects?q=`);
     p = list.find(x => x.id === id);
+    try {
+      callsData = await api(`/prospects/${id}/calls`);
+    } catch(e) {}
   }
+
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
-    <div class="modal">
+    <div class="modal modal-large">
       <h3>${p ? 'Fiche Prospect : ' + p.name : 'Nouveau Prospect'}</h3>
       <div id="dup-warning" style="display:none; background:#fdecea; color:#8a2c22; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>
-      <div class="form-field"><label>Nom complet</label><input id="p-name" value="${p?.name || ''}"></div>
+
+      <div class="form-field"><label>Nom complet</label><input id="p-name" value="${p?.name || ''}" placeholder="Ex: Mohamed Ben Salah" required></div>
       <div class="form-row">
-        <div class="form-field"><label>Téléphone (principal)</label><input id="p-phone" value="${p?.phone || ''}"></div>
-        <div class="form-field"><label>Email (facultatif)</label><input id="p-email" value="${p?.email || ''}"></div>
+        <div class="form-field"><label>Téléphone (principal)</label><input id="p-phone" value="${p?.phone || ''}" placeholder="Ex: 98 123 456" required></div>
+        <div class="form-field"><label>Email (facultatif)</label><input id="p-email" value="${p?.email || ''}" placeholder="parent@domaine.tn"></div>
       </div>
       <div class="form-row">
         <div class="form-field"><label>Source du contact</label>
@@ -567,20 +601,83 @@ async function openProspectModal(id = null){
             `).join('')}
           </select>
         </div>
-        <div class="form-field"><label>Statut commercial</label>
+        <div class="form-field"><label>Statut commercial (Libellés en français)</label>
           <select id="p-status">
-            ${['a_appeler','contacte','interesse','a_relancer','converti','perdu','injoignable'].map(st=>`
-              <option value="${st}" ${p?.status===st?'selected':''}>${st}</option>
-            `).join('')}
+            <option value="a_appeler" ${(!p || p.status==='a_appeler')?'selected':''}>À appeler</option>
+            <option value="contacte" ${p?.status==='contacte'?'selected':''}>Contacté</option>
+            <option value="interesse" ${p?.status==='interesse'?'selected':''}>Intéressé</option>
+            <option value="a_relancer" ${p?.status==='a_relancer'?'selected':''}>À relancer</option>
+            <option value="converti" ${p?.status==='converti'?'selected':''}>Converti</option>
+            <option value="perdu" ${p?.status==='perdu'?'selected':''}>Perdu</option>
+            <option value="injoignable" ${p?.status==='injoignable'?'selected':''}>Injoignable</option>
           </select>
         </div>
       </div>
+
+      <!-- Bloc Règle spéciale : PERDU avec Raison obligatoire (CDC §5) -->
+      <div id="lost-reason-wrap" style="display:${p?.status==='perdu'?'block':'none'}; background:#fff8f6; border:1px solid #f9d5ce; border-radius:8px; padding:14px; margin-bottom:14px;">
+        <div class="form-field" style="margin-bottom:8px;">
+          <label style="color:var(--danger); font-weight:700;">Raison de la perte (obligatoire) *</label>
+          <select id="p-lost-reason">
+            <option value="">Sélectionnez la raison obligatoire…</option>
+            ${['Prix trop élevé','Distance / localisation','Horaires incompatibles','Enfant non intéressé','Parent ayant choisi un autre centre','Projet abandonné','Autre'].map(r=>`
+              <option value="${r}" ${p?.lost_reason===r?'selected':''}>${r}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="form-field" id="lost-comment-wrap" style="display:${p?.lost_reason==='Autre'?'block':'none'}; margin:0;">
+          <label style="font-size:12px; font-weight:600;">Commentaire obligatoire pour le motif « Autre » *</label>
+          <input id="p-lost-comment" value="${p?.lost_comment || ''}" placeholder="Précisez la raison de désistement…">
+        </div>
+      </div>
+
       <div class="form-field"><label>Date de prochaine relance</label><input type="date" id="p-follow" value="${p?.next_follow_up || ''}"></div>
       <div class="form-field"><label>Historique / Notes</label><textarea id="p-notes">${p?.notes || ''}</textarea></div>
+
+      ${p ? `
+        <!-- Section Règle spéciale : TENTATIVES D'APPEL & INJOIGNABLE (CDC §5) -->
+        <div style="background:#f4f7fa; border:1px solid var(--border); border-radius:10px; padding:14px; margin:16px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong style="color:var(--blue-dark); font-size:14px;">📞 Journal des appels & prises de contact</strong>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">
+                Tentatives sans réponse enregistrées : <strong style="color:${callsData.unanswered_count>=3?'var(--danger)':'var(--text)'}">${callsData.unanswered_count} / 3</strong>
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="p-add-call">+ Enregistrer un appel</button>
+          </div>
+
+          ${callsData.unanswered_count >= 3 ? `
+            <div style="background:#fdecea; border-left:4px solid var(--danger); padding:10px 12px; border-radius:0 8px 8px 0; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                ⚠️ <strong>3 tentatives sans réponse atteintes.</strong><br>
+                <span style="font-size:12px;">Conformément à la règle commerciale, vous pouvez classer ce prospect en « Injoignable ».</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline" id="btn-set-injoignable" style="background:#fff;">Passer en Injoignable</button>
+            </div>
+          ` : ''}
+
+          <div id="calls-list-body" style="max-height:130px; overflow-y:auto; font-size:12.5px;">
+            ${callsData.calls.length === 0 ? '<div style="color:var(--muted); font-style:italic;">Aucun appel enregistré pour le moment.</div>' :
+              callsData.calls.map(c => `
+                <div style="padding:6px 0; border-bottom:1px solid #e5ecf0; display:flex; justify-content:space-between;">
+                  <div>
+                    <strong>${formatCallResult(c.result)}</strong>
+                    ${c.notes ? `<span style="color:var(--muted);"> — ${c.notes}</span>` : ''}
+                  </div>
+                  <div style="color:var(--muted); font-size:11.5px;">
+                    ${c.called_at.slice(0,16)} ${c.caller_name ? '(' + c.caller_name + ')' : ''}
+                  </div>
+                </div>
+              `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
       <div class="modal-actions">
-        ${p ? `<button class="btn btn-outline" id="p-book-rdv">Planifier RDV</button>` : ''}
-        <button class="btn btn-outline" id="p-cancel">Fermer</button>
-        <button class="btn btn-primary" id="p-save">Enregistrer</button>
+        ${p ? `<button type="button" class="btn btn-outline" id="p-book-rdv">📅 Planifier un RDV</button>` : ''}
+        <button type="button" class="btn btn-outline" id="p-cancel">Fermer</button>
+        <button type="button" class="btn btn-primary" id="p-save">Enregistrer</button>
       </div>
     </div>
   `;
@@ -588,6 +685,51 @@ async function openProspectModal(id = null){
   modal.querySelector('#p-cancel').addEventListener('click', ()=>modal.remove());
   modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
 
+  // Affichage dynamique de la raison obligatoire si "Perdu"
+  const statusSelect = modal.querySelector('#p-status');
+  const lostReasonWrap = modal.querySelector('#lost-reason-wrap');
+  const lostReasonSelect = modal.querySelector('#p-lost-reason');
+  const lostCommentWrap = modal.querySelector('#lost-comment-wrap');
+  const lostCommentInput = modal.querySelector('#p-lost-comment');
+
+  statusSelect.addEventListener('change', ()=>{
+    if(statusSelect.value === 'perdu'){
+      lostReasonWrap.style.display = 'block';
+    } else {
+      lostReasonWrap.style.display = 'none';
+    }
+  });
+
+  lostReasonSelect.addEventListener('change', ()=>{
+    if(lostReasonSelect.value === 'Autre'){
+      lostCommentWrap.style.display = 'block';
+    } else {
+      lostCommentWrap.style.display = 'none';
+    }
+  });
+
+  // Action rapide : Passer en Injoignable si 3 appels sans réponse
+  const btnSetInj = modal.querySelector('#btn-set-injoignable');
+  if(btnSetInj){
+    btnSetInj.addEventListener('click', async ()=>{
+      statusSelect.value = 'injoignable';
+      lostReasonWrap.style.display = 'none';
+      toast('Statut basculé à « Injoignable ». Cliquez sur Enregistrer pour confirmer.');
+    });
+  }
+
+  // Enregistrement d'un appel
+  const btnAddCall = modal.querySelector('#p-add-call');
+  if(btnAddCall && p){
+    btnAddCall.addEventListener('click', ()=>{
+      openCallModal(p.id, p.name, ()=>{
+        modal.remove();
+        openProspectModal(p.id);
+      });
+    });
+  }
+
+  // Planification RDV
   if(p){
     modal.querySelector('#p-book-rdv').addEventListener('click', ()=>{
       modal.remove();
@@ -596,23 +738,45 @@ async function openProspectModal(id = null){
   }
 
   modal.querySelector('#p-save').addEventListener('click', async ()=>{
+    const name = modal.querySelector('#p-name').value.trim();
+    const phone = modal.querySelector('#p-phone').value.trim();
+    const status = statusSelect.value;
+    const lost_reason = lostReasonSelect.value;
+    const lost_comment = lostCommentInput.value.trim();
+
+    if(!name || !phone){ toast('Nom et téléphone requis.'); return; }
+
+    if(status === 'perdu'){
+      if(!lost_reason){
+        toast('Veuillez obligatoirement sélectionner la raison de perte.');
+        lostReasonSelect.focus();
+        return;
+      }
+      if(lost_reason === 'Autre' && !lost_comment){
+        toast('Un commentaire explicatif est obligatoire pour la raison « Autre ».');
+        lostCommentInput.focus();
+        return;
+      }
+    }
+
     const payload = {
-      name: modal.querySelector('#p-name').value.trim(),
-      phone: modal.querySelector('#p-phone').value.trim(),
+      name, phone,
       email: modal.querySelector('#p-email').value.trim(),
       source: modal.querySelector('#p-source').value,
-      status: modal.querySelector('#p-status').value,
+      status,
+      lost_reason: status === 'perdu' ? lost_reason : null,
+      lost_comment: (status === 'perdu' && lost_reason === 'Autre') ? lost_comment : null,
       next_follow_up: modal.querySelector('#p-follow').value || null,
       notes: modal.querySelector('#p-notes').value.trim(),
     };
-    if(!payload.name || !payload.phone){ toast('Nom et téléphone requis.'); return; }
+
     try{
       if(p){
         await api(`/prospects/${p.id}`, { method:'PATCH', body: JSON.stringify(payload) });
       } else {
         await api('/prospects', { method:'POST', body: JSON.stringify(payload) });
       }
-      toast('Prospect enregistré.');
+      toast('Prospect enregistré avec succès.');
       modal.remove();
       loadPage('prospects');
     }catch(e){
@@ -626,16 +790,69 @@ async function openProspectModal(id = null){
   });
 }
 
-async function convertProspect(id){
-  if(!confirm("Convertir ce prospect en dossier Famille ? Une fiche Famille sera créée automatiquement.")) return;
-  try{
-    const res = await api(`/prospects/${id}/convert`, { method:'POST' });
-    toast('Prospect converti avec succès en Famille !');
-    loadPage('families');
-  }catch(e){ toast(e.message); }
+function formatCallResult(r){
+  const map = {
+    sans_reponse: '❌ Sans réponse / Ne décroche pas',
+    repondeur: '📞 Boîte vocale / Répondeur',
+    occupe: '⛔ Ligne occupée',
+    contacte: '✔ Contacté / Échange réussi',
+    refus: '🚫 Contacté / Ne souhaite pas poursuivre'
+  };
+  return map[r] || r;
 }
 
-/* ================= 3. RENDEZ-VOUS (CDC §6) ================= */
+function openCallModal(prospectId, prospectName, onDone){
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <h3>Enregistrer un appel pour : ${prospectName}</h3>
+      <p style="font-size:13px; color:var(--muted); margin-top:-6px;">
+        Chaque tentative est tracée. À la 3e tentative sans réponse, le statut Injoignable vous sera proposé.
+      </p>
+      <div class="form-field"><label>Résultat de l'appel *</label>
+        <select id="c-result">
+          <option value="sans_reponse">Sans réponse / Ne décroche pas (Incrémente non-réponse)</option>
+          <option value="repondeur">Boîte vocale / Répondeur (Incrémente non-réponse)</option>
+          <option value="occupe">Ligne occupée (Incrémente non-réponse)</option>
+          <option value="contacte">Contacté / Échange réussi (Parent a répondu)</option>
+          <option value="refus">Contacté / Ne souhaite pas poursuivre</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Notes / Résumé de l'échange</label>
+        <textarea id="c-notes" placeholder="Détails de la tentative…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="c-cancel">Annuler</button>
+        <button type="button" class="btn btn-primary" id="c-save">Enregistrer la tentative</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#c-cancel').addEventListener('click', ()=>modal.remove());
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
+  modal.querySelector('#c-save').addEventListener('click', async ()=>{
+    const result = modal.querySelector('#c-result').value;
+    const notes = modal.querySelector('#c-notes').value.trim();
+    try {
+      const res = await api(`/prospects/${prospectId}/calls`, {
+        method: 'POST',
+        body: JSON.stringify({ result, notes, auto_status: false })
+      });
+      if(res.suggest_unreachable){
+        toast(`⚠️ 3e tentative sans réponse enregistrée. Pensez à classer le prospect en « Injoignable ».`);
+      } else {
+        toast('Tentative d\'appel enregistrée.');
+      }
+      modal.remove();
+      if(onDone) onDone();
+    } catch(e) {
+      toast(e.message);
+    }
+  });
+}
+
+/* ================= 3. RENDEZ-VOUS & MULTI-ENFANTS (CDC §3, §6, §7) ================= */
 async function pageAppointments(content){
   let statusFilter = '';
   async function refresh(){
@@ -643,30 +860,47 @@ async function pageAppointments(content){
     if(statusFilter) params.set('status', statusFilter);
     const rawAppointments = await api('/appointments?' + params.toString());
     const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
-    document.getElementById('appointments-list').innerHTML = appointments.length === 0 ? `<tr><td colspan="7" class="empty">Aucun rendez-vous.</td></tr>` :
-      appointments.map(a => `
-        <tr>
-          <td><strong>${a.prospect_name || 'Prospect'}</strong><br><span style="color:var(--muted); font-size:12px;">${a.phone || ''}</span></td>
-          <td>${formatDate(a.date_time)} ${a.date_time.slice(11,16)}</td>
-          <td>${a.type}</td>
-          <td>${statusBadge(a.status)}</td>
-          <td>${statusBadge(a.attendance || 'non_renseignee')}</td>
-          <td>${a.result || '—'}</td>
-          <td>
-            <div class="icon-row">
-              <button class="btn btn-outline btn-sm" onclick="openAppointmentModal(${a.id})">Modifier</button>
-              <button class="btn btn-orange btn-sm" onclick="rescheduleAppointment(${a.id})">Reporter</button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+
+    document.getElementById('appointments-list').innerHTML = appointments.length === 0 ? `<tr><td colspan="8" class="empty">Aucun rendez-vous.</td></tr>` :
+      appointments.map(a => {
+        const kidsText = (a.children && a.children.length > 0)
+          ? a.children.map(k => `${k.prenom} ${k.nom}${k.age ? ' (' + k.age + ' ans)' : ''}`).join(', ')
+          : '—';
+        return `
+          <tr>
+            <td>
+              <strong>${a.prospect_name || 'Prospect'}</strong><br>
+              <span style="color:var(--muted); font-size:12px;">📞 ${a.phone || ''}</span>
+            </td>
+            <td>${formatDate(a.date_time)} ${a.date_time.slice(11,16)}</td>
+            <td>${a.type}</td>
+            <td style="font-size:12.5px; max-width:180px;">👶 ${kidsText}</td>
+            <td>${statusBadge(a.status)}</td>
+            <td>${statusBadge(a.attendance || 'non_renseignee')}</td>
+            <td>
+              <strong>${formatAppointmentResult(a.result)}</strong>
+              ${a.result === 'inscription' ? `
+                <div style="margin-top:4px;">
+                  <button class="btn btn-success btn-sm" onclick="convertRdvToFamily(${a.id})">🎓 Créer Famille & Inscrire</button>
+                </div>
+              ` : ''}
+            </td>
+            <td>
+              <div class="icon-row">
+                <button class="btn btn-outline btn-sm" onclick="openAppointmentModal(${a.id})">Modifier</button>
+                <button class="btn btn-orange btn-sm" onclick="rescheduleAppointment(${a.id})">Reporter</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
   }
 
   content.innerHTML = `
     <div class="page-header">
       <div>
         <h1 class="page-title">Rendez-vous Découverte & Orientation</h1>
-        <p class="page-sub">Planification des entretiens avec les familles, qualifications et reports.</p>
+        <p class="page-sub">Planification des entretiens avec les familles, qualification des enfants et conversion.</p>
       </div>
       <button class="btn btn-primary" id="btn-new-app">+ Planifier un RDV</button>
     </div>
@@ -685,8 +919,8 @@ async function pageAppointments(content){
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Prospect</th><th>Date & Heure</th><th>Type</th><th>Statut</th><th>Présence</th><th>Résultat</th><th>Actions</th></tr></thead>
-          <tbody id="appointments-list"><tr><td colspan="7" class="empty">Chargement…</td></tr></tbody>
+          <thead><tr><th>Prospect</th><th>Date & Heure</th><th>Type</th><th>Enfants saisis</th><th>Statut</th><th>Présence</th><th>Résultat entretien</th><th>Actions</th></tr></thead>
+          <tbody id="appointments-list"><tr><td colspan="8" class="empty">Chargement…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -697,29 +931,60 @@ async function pageAppointments(content){
   await refresh();
 }
 
+function formatAppointmentResult(res){
+  const map = {
+    inscription: '🎓 Inscription',
+    reflexion: '🤔 À réfléchir',
+    relance: '⏳ À relancer',
+    refus: '❌ Refus'
+  };
+  return map[res] || (res ? res : '—');
+}
+
+async function convertRdvToFamily(appointmentId){
+  if(!confirm("Créer le dossier Famille et transférer automatiquement les enfants saisis lors de ce rendez-vous ?")) return;
+  try {
+    const res = await api(`/appointments/${appointmentId}/convert-to-family`, { method: 'POST' });
+    toast('Famille et fiches enfants créées avec succès !');
+    const firstKidId = res.createdChildren?.[0]?.id || null;
+    openEnrollmentModal(null, firstKidId);
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
 async function openAppointmentModal(id = null, presetProspectId = null){
   try{
     const rawProspects = await api('/prospects');
     const prospects = Array.isArray(rawProspects) ? rawProspects : [];
     let a = null;
+    let existingKids = [];
+
     if(id){
-      const list = await api('/appointments');
-      a = list.find(x => x.id === id);
+      a = await api(`/appointments/${id}`);
+      existingKids = a.children || [];
+    } else if(presetProspectId) {
+      try {
+        existingKids = await api(`/prospects/${presetProspectId}/children`);
+      } catch(e) {}
     }
+
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-      <div class="modal">
+      <div class="modal modal-large">
         <h3>${a ? 'Modifier le Rendez-vous' : 'Planifier un Rendez-vous'}</h3>
-        <div class="form-field"><label>Prospect concerné</label>
+
+        <div class="form-field"><label>Prospect concerné *</label>
           <select id="a-prospect" ${a?'disabled':''}>
             ${prospects.length === 0 ? '<option value="">(Aucun prospect enregistré - créez d\'abord un prospect)</option>' :
               prospects.map(p=>`<option value="${p.id}" ${(a?.prospect_id===p.id || presetProspectId===p.id)?'selected':''}>${p.name} (${p.phone})</option>`).join('')}
           </select>
         </div>
+
         <div class="form-row">
-          <div class="form-field"><label>Date et heure</label><input type="datetime-local" id="a-datetime" value="${a ? a.date_time.slice(0,16) : ''}"></div>
-          <div class="form-field"><label>Type</label>
+          <div class="form-field"><label>Date et heure *</label><input type="datetime-local" id="a-datetime" value="${a ? a.date_time.slice(0,16) : ''}" required></div>
+          <div class="form-field"><label>Type d'entretien</label>
             <select id="a-type">
               <option value="decouverte" ${a?.type==='decouverte'?'selected':''}>Découverte</option>
               <option value="orientation" ${a?.type==='orientation'?'selected':''}>Orientation</option>
@@ -728,6 +993,19 @@ async function openAppointmentModal(id = null, presetProspectId = null){
             </select>
           </div>
         </div>
+
+        <!-- Section Multi-enfants saisis lors du RDV (CDC §3) -->
+        <div style="background:#f4f7fa; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div>
+              <strong style="color:var(--blue-dark); font-size:13.5px;">👶 Enfants concernés par ce rendez-vous</strong>
+              <div style="font-size:12px; color:var(--muted);">Ces informations seront automatiquement réutilisées lors de l'inscription.</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-add-rdv-kid">+ Ajouter un enfant</button>
+          </div>
+          <div id="rdv-kids-container" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
         ${a ? `
           <div class="form-row">
             <div class="form-field"><label>Statut</label>
@@ -746,20 +1024,22 @@ async function openAppointmentModal(id = null, presetProspectId = null){
               </select>
             </div>
           </div>
-          <div class="form-field"><label>Résultat de l'entretien</label>
+          <div class="form-field"><label>Résultat de l'entretien (CDC §6)</label>
             <select id="a-result">
-              <option value="">Sélectionner…</option>
-              <option value="inscription" ${a.result==='inscription'?'selected':''}>Inscription</option>
-              <option value="reflexion" ${a.result==='reflexion'?'selected':''}>À réfléchir</option>
-              <option value="relance" ${a.result==='relance'?'selected':''}>À relancer</option>
-              <option value="refus" ${a.result==='refus'?'selected':''}>Refus</option>
+              <option value="">Sélectionner un résultat…</option>
+              <option value="inscription" ${a.result==='inscription'?'selected':''}>🎓 Inscription (Débloque la création famille & inscription)</option>
+              <option value="reflexion" ${a.result==='reflexion'?'selected':''}>🤔 À réfléchir</option>
+              <option value="relance" ${a.result==='relance'?'selected':''}>⏳ À relancer</option>
+              <option value="refus" ${a.result==='refus'?'selected':''}>❌ Refus</option>
             </select>
           </div>
         ` : ''}
+
         <div class="form-field"><label>Notes & Commentaires</label><textarea id="a-notes">${a?.notes||''}</textarea></div>
+
         <div class="modal-actions">
-          <button class="btn btn-outline" id="a-cancel">Annuler</button>
-          <button class="btn btn-primary" id="a-save">Enregistrer</button>
+          <button type="button" class="btn btn-outline" id="a-cancel">Annuler</button>
+          <button type="button" class="btn btn-primary" id="a-save">Enregistrer</button>
         </div>
       </div>
     `;
@@ -767,11 +1047,49 @@ async function openAppointmentModal(id = null, presetProspectId = null){
     modal.querySelector('#a-cancel').addEventListener('click', ()=>modal.remove());
     modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.remove(); });
 
+    const kidsContainer = modal.querySelector('#rdv-kids-container');
+    function addKidRow(k = {}){
+      const row = document.createElement('div');
+      row.className = 'rdv-kid-row';
+      row.style = 'background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px; display:grid; grid-template-columns: 1fr 1fr 70px 1fr 1fr 34px; gap:8px; align-items:center;';
+      row.innerHTML = `
+        <input type="text" placeholder="Prénom" class="k-prenom" value="${k.prenom || ''}" style="padding:6px; font-size:12.5px;">
+        <input type="text" placeholder="Nom" class="k-nom" value="${k.nom || ''}" style="padding:6px; font-size:12.5px;">
+        <input type="number" placeholder="Âge" class="k-age" value="${k.age || ''}" min="4" max="18" style="padding:6px; font-size:12.5px;">
+        <input type="text" placeholder="Niveau scolaire" class="k-level" value="${k.level || ''}" style="padding:6px; font-size:12.5px;">
+        <input type="text" placeholder="Centres d'intérêt" class="k-interests" value="${k.interests || ''}" style="padding:6px; font-size:12.5px;">
+        <button type="button" class="btn btn-danger btn-sm" style="padding:4px 8px; justify-content:center;" onclick="this.parentElement.remove()">✕</button>
+      `;
+      kidsContainer.appendChild(row);
+    }
+
+    if(existingKids.length > 0){
+      existingKids.forEach(k => addKidRow(k));
+    } else {
+      addKidRow(); // Au moins une ligne par défaut
+    }
+
+    modal.querySelector('#btn-add-rdv-kid').addEventListener('click', ()=>addKidRow());
+
     modal.querySelector('#a-save').addEventListener('click', async ()=>{
       const prospectVal = modal.querySelector('#a-prospect').value;
-      if(!prospectVal){ toast('Veuillez d\'abord sélectionner ou créer un prospect.'); return; }
+      if(!prospectVal){ toast('Veuillez sélectionner un prospect.'); return; }
       const dt = modal.querySelector('#a-datetime').value;
       if(!dt){ toast('Date et heure requises.'); return; }
+
+      // Récupération des enfants saisis
+      const children = [];
+      modal.querySelectorAll('.rdv-kid-row').forEach(row => {
+        const prenom = row.querySelector('.k-prenom').value.trim();
+        const nom = row.querySelector('.k-nom').value.trim();
+        const age = row.querySelector('.k-age').value ? Number(row.querySelector('.k-age').value) : null;
+        const level = row.querySelector('.k-level').value.trim();
+        const interests = row.querySelector('.k-interests').value.trim();
+        if(prenom && nom){
+          children.push({ prenom, nom, age, level, interests });
+        }
+      });
+
       try{
         if(a){
           await api(`/appointments/${a.id}`, {
@@ -780,7 +1098,10 @@ async function openAppointmentModal(id = null, presetProspectId = null){
               status: modal.querySelector('#a-status').value,
               attendance: modal.querySelector('#a-attendance').value,
               result: modal.querySelector('#a-result').value,
-              notes: modal.querySelector('#a-notes').value.trim()
+              notes: modal.querySelector('#a-notes').value.trim(),
+              date_time: dt.replace('T', ' '),
+              type: modal.querySelector('#a-type').value,
+              children
             })
           });
         } else {
@@ -790,11 +1111,12 @@ async function openAppointmentModal(id = null, presetProspectId = null){
               prospect_id: Number(prospectVal),
               date_time: dt.replace('T', ' '),
               type: modal.querySelector('#a-type').value,
-              notes: modal.querySelector('#a-notes').value.trim()
+              notes: modal.querySelector('#a-notes').value.trim(),
+              children
             })
           });
         }
-        toast('Rendez-vous enregistré.');
+        toast('Rendez-vous et dossier enfant(s) enregistrés.');
         modal.remove();
         loadPage('appointments');
       }catch(e){ toast(e.message); }
@@ -810,7 +1132,7 @@ function rescheduleAppointment(id){
   modal.innerHTML = `
     <div class="modal">
       <h3>Reporter le rendez-vous (CDC §6.2)</h3>
-      <p style="font-size:13px; color:var(--muted); margin-top:-6px;">L'ancien rendez-vous sera conservé dans l'historique et un nouveau créneau sera généré.</p>
+      <p style="font-size:13px; color:var(--muted); margin-top:-6px;">L'ancien rendez-vous sera conservé dans l'historique et un nouveau créneau sera généré avec les mêmes enfants associés.</p>
       <div class="form-field"><label>Nouvelle date et heure</label><input type="datetime-local" id="resched-dt" required></div>
       <div class="modal-actions">
         <button class="btn btn-outline" id="r-cancel">Annuler</button>
